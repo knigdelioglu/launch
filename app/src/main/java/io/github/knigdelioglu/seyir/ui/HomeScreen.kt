@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
+import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
 import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
@@ -56,8 +58,10 @@ import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 object HomeFocusKey {
@@ -76,6 +80,7 @@ fun HomeScreen(
     onOpenAllApps: () -> Unit,
     onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
+    onRefreshMatches: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
     val clock = rememberClock()
@@ -197,7 +202,7 @@ fun HomeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(SeyirSpacing.Item))
+                    Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
                     Text(
                         text = if (homeApps.isEmpty()) {
                             "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
@@ -207,6 +212,16 @@ fun HomeScreen(
                         fontSize = SeyirType.Meta,
                         color = SeyirColors.TextTertiary,
                     )
+
+                    if (uiState.sportsApiConfigured) {
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+                        TodayMatchesSection(
+                            matches = uiState.todayMatches,
+                            loading = uiState.matchesLoading,
+                            error = uiState.matchesError,
+                            onRefresh = onRefreshMatches,
+                        )
+                    }
                 }
 
                 uiState.isLoading -> LoadingState()
@@ -280,6 +295,161 @@ fun HomeScreen(
             },
             onDismiss = { closeDialogAndRestore() },
         )
+    }
+}
+
+@Composable
+private fun TodayMatchesSection(
+    matches: List<TodayMatch>,
+    loading: Boolean,
+    error: String?,
+    onRefresh: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Bugün ne var",
+            fontSize = SeyirType.SectionTitle,
+            fontWeight = FontWeight.SemiBold,
+            color = SeyirColors.TextPrimary.copy(alpha = 0.9f),
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = when {
+                loading -> "yükleniyor"
+                error != null -> "veri alınamadı"
+                matches.isEmpty() -> "bugün maç yok"
+                else -> "${matches.size} öne çıkan maç"
+            },
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextTertiary,
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        MatchRefreshAction(onClick = onRefresh)
+    }
+
+    Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
+
+    when {
+        loading && matches.isEmpty() -> Text(
+            text = "Maçlar hazırlanıyor…",
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextSecondary,
+        )
+
+        error != null && matches.isEmpty() -> Text(
+            text = error,
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextSecondary,
+        )
+
+        matches.isEmpty() -> Text(
+            text = "Bugün gösterilecek maç bulunamadı.",
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextSecondary,
+        )
+
+        else -> LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Compact),
+        ) {
+            items(
+                items = matches,
+                key = { it.fixtureId },
+            ) { match ->
+                TodayMatchCard(match)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayMatchCard(match: TodayMatch) {
+    Column(
+        modifier = Modifier
+            .width(214.dp)
+            .clip(RoundedCornerShape(SeyirRadius.Action))
+            .background(SeyirColors.SurfaceSoft)
+            .padding(horizontal = 15.dp, vertical = 11.dp),
+    ) {
+        Text(
+            text = match.leagueName,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = 11.sp,
+            color = SeyirColors.TextTertiary,
+        )
+        Spacer(modifier = Modifier.height(5.dp))
+        Text(
+            text = match.homeTeam,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = SeyirType.Meta,
+            fontWeight = FontWeight.Medium,
+            color = SeyirColors.TextPrimary,
+        )
+        Text(
+            text = match.awayTeam,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = SeyirType.Meta,
+            fontWeight = FontWeight.Medium,
+            color = SeyirColors.TextPrimary,
+        )
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(
+            text = matchStatusText(match),
+            fontSize = 12.sp,
+            fontWeight = if (match.isLive) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (match.isLive) SeyirColors.Accent else SeyirColors.TextSecondary,
+        )
+    }
+}
+
+@Composable
+private fun MatchRefreshAction(onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+
+    Text(
+        text = "Yenile",
+        modifier = Modifier
+            .clip(RoundedCornerShape(SeyirRadius.Pill))
+            .background(
+                if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        fontSize = SeyirType.Meta,
+        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
+        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextTertiary,
+    )
+}
+
+private fun matchStatusText(match: TodayMatch): String {
+    val score = if (match.homeGoals != null && match.awayGoals != null) {
+        "${match.homeGoals} – ${match.awayGoals}"
+    } else {
+        null
+    }
+
+    return when {
+        match.isLive -> {
+            val minute = match.elapsedMinute?.let { "$it'" } ?: "CANLI"
+            if (score != null) "$minute   $score" else minute
+        }
+
+        match.isFinished -> if (score != null) "MS   $score" else "Maç sona erdi"
+        match.statusShort == "PST" -> "Ertelendi"
+        match.statusShort == "CANC" -> "İptal"
+        else -> {
+            val time = Instant.ofEpochSecond(match.kickoffEpochSeconds)
+                .atZone(ZoneId.systemDefault())
+                .format(MATCH_TIME_FORMATTER)
+            time
+        }
     }
 }
 
@@ -716,3 +886,5 @@ private fun greetingFor(time: LocalTime): String = when (time.hour) {
     in 12..17 -> "İyi günler"
     else -> "İyi akşamlar"
 }
+
+private val MATCH_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
