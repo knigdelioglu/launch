@@ -19,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.knigdelioglu.seyir.ui.AllAppsScreen
+import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
 import io.github.knigdelioglu.seyir.ui.HomeScreen
 import io.github.knigdelioglu.seyir.ui.HomeViewModel
 import io.github.knigdelioglu.seyir.ui.theme.SeyirTheme
@@ -40,27 +41,41 @@ class MainActivity : ComponentActivity() {
         setContent {
             SeyirTheme {
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
-                var showAllApps by rememberSaveable { mutableStateOf(false) }
+                var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
 
-                BackHandler(enabled = showAllApps) {
-                    showAllApps = false
+                BackHandler(enabled = screen != SCREEN_HOME) {
+                    screen = when (screen) {
+                        SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
+                        else -> SCREEN_HOME
+                    }
                 }
 
-                if (showAllApps) {
-                    AllAppsScreen(
+                when (screen) {
+                    SCREEN_ALL_APPS -> AllAppsScreen(
                         apps = uiState.apps,
+                        hiddenAppCount = uiState.hiddenApps.size,
                         favoritePackageNames = uiState.favoritePackageNames,
                         transientMessage = uiState.transientMessage,
                         onAppClick = viewModel::openApp,
                         onToggleFavorite = viewModel::toggleFavorite,
-                        onBack = { showAllApps = false },
+                        onHideApp = { viewModel.setAppHidden(it, true) },
+                        onOpenHiddenApps = { screen = SCREEN_HIDDEN_APPS },
+                        onBack = { screen = SCREEN_HOME },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
-                } else {
-                    HomeScreen(
+
+                    SCREEN_HIDDEN_APPS -> HiddenAppsScreen(
+                        apps = uiState.hiddenApps,
+                        transientMessage = uiState.transientMessage,
+                        onRestore = { viewModel.setAppHidden(it, false) },
+                        onBack = { screen = SCREEN_ALL_APPS },
+                        onDismissMessage = viewModel::dismissTransientMessage,
+                    )
+
+                    else -> HomeScreen(
                         uiState = uiState,
                         onAppClick = viewModel::openApp,
-                        onOpenAllApps = { showAllApps = true },
+                        onOpenAllApps = { screen = SCREEN_ALL_APPS },
                         onRetry = viewModel::refresh,
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
@@ -115,5 +130,11 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+    }
+
+    private companion object {
+        const val SCREEN_HOME = "home"
+        const val SCREEN_ALL_APPS = "all_apps"
+        const val SCREEN_HIDDEN_APPS = "hidden_apps"
     }
 }
