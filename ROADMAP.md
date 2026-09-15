@@ -99,7 +99,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 ### UX
 
 - [~] context menu focus trap kodlandı; gerçek kumanda testi bekliyor
-- [~] Tüm Uygulamalar context menu kapanınca kaynak karta explicit focus restore var; favori menüsü ve gerçek kumanda testi bekliyor
+- [~] Home ve Tüm Uygulamalar context menu kapanınca kaynak/hedef karta explicit focus restore var; gerçek kumanda testi bekliyor
 - [~] taşıma akışı kumandaya özel menü olarak uygulandı; cihaz testi bekliyor
 - [~] gizleme geri alınabilir; yanlış tetikleme/uzun-OK davranışı cihazda doğrulanacak
 
@@ -124,8 +124,8 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] elevation/shadow yaklaşımı (ağır shadow yerine düz surface hiyerarşisi)
 - [x] motion duration/easing tokenları (`FocusDurationMs` + `FocusEasing`)
 - [x] Dark palette (`SeyirColors`)
-- [ ] Black palette
-- [ ] accent altyapısı
+- [x] Black palette (gerçek siyah arka plan)
+- [x] accent altyapısı (Nötr / Mavi / Zümrüt)
 
 ### Home UI
 
@@ -136,7 +136,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] Ayarlar girişi ve TV uyumlu Ayarlar kabuğu
 - [x] boş state
 - [x] ilk focus davranışı
-- [~] focus restore (Home'da favori/Tüm Uygulamalar/Ayarlar; Tüm Uygulamalar'da son kart/Gizlenenler; kodlandı ve CI doğrulandı, gerçek kumanda testi bekliyor)
+- [~] focus restore (Home, Tüm Uygulamalar ve Gizlenenler'de scroll-before-focus + kaynak/hedef restore kodlandı ve CI doğrulandı; gerçek kumanda testi bekliyor)
 - [x] Home, Tüm Uygulamalar, Gizlenenler ve Ayarlar ortak design tokenlarını kullanıyor
 - [x] Ayarlar → Uygulamaları yönet → BACK dönüşü geldiği Ayarlar ekranına dönüyor
 
@@ -144,16 +144,17 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 - [~] sağ/sol geçişleri deterministik (kodlandı, cihaz testi bekliyor)
 - [~] grid yukarı/aşağı geçişleri Compose focus sistemiyle mevcut; cihaz testi bekliyor
-- [ ] focus off-screen kalmıyor
-- [ ] scroll sırasında focus zıplamıyor
+- [~] off-screen restore hedefi önce LazyRow/LazyGrid içinde görünür konuma getiriliyor; cihaz testi bekliyor
+- [~] restore sırasında `scrollToItem` kullanılıyor; hızlı D-pad ile scroll zıplaması cihazda doğrulanacak
 - [ ] hızlı D-pad spam testinden geçiyor
-- [~] Tüm Uygulamalar dialog/menu kapanınca kaynak karta explicit dönüş var; favori dialog ve cihaz testi bekliyor
+- [~] Home ve Tüm Uygulamalar dialog/menu kapanınca explicit focus dönüşü var; gerçek kumanda testi bekliyor
+- [~] Gizlenenler'de kart geri getirildiğinde komşu karta, liste boşaldığında Geri aksiyonuna focus devri kodlandı; cihaz testi bekliyor
 
 ### Motion
 
 - [x] focus scale yaklaşık 1.06–1.08 aralığında tune et (başlangıç: 1.06)
 - [x] 150–200 ms sınıfında animasyonları tune et (başlangıç: 160 ms)
-- [ ] reduced motion seçeneği için temel altyapı
+- [x] reduced motion altyapısı ve Ayarlar seçeneği (focus scale = 1, duration = 0)
 - [x] gereksiz blur/glow kaldır
 
 ### Çıkış kriterleri
@@ -181,8 +182,8 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Ayarlar
 
-- [~] TV uyumlu Ayarlar kabuğu mevcut; işlevsel görünüm ayarları M4'te eklenecek
-- [ ] görünüm ayarları
+- [x] TV uyumlu Ayarlar kabuğu
+- [x] temel görünüm ayarları (tema / vurgu / hareket)
 - [ ] favori yönetimi
 - [~] gizli uygulamalar yönetiminin temel ekranı mevcut; Ayarlar → Uygulamaları yönet üzerinden erişilebiliyor
 - [ ] başlangıç davranışı
@@ -191,16 +192,17 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Görünüm
 
-- [ ] Dark / Black tema
+- [x] Dark / Black tema
 - [ ] wallpaper: minimal / özel
 - [ ] kart boyutu seçenekleri
-- [ ] animasyon: normal / azaltılmış
+- [x] animasyon: normal / azaltılmış
+- [x] accent: Nötr / Mavi / Zümrüt
 - [ ] overscan-safe padding ayarı gerekiyorsa ekle
 
 ### Çıkış kriterleri
 
 - [ ] İlk kurulum yalnız D-pad ile tamamlanabiliyor.
-- [ ] Ayar değişiklikleri anında uygulanıyor ve restart sonrası korunuyor.
+- [~] Tema/vurgu/hareket değişiklikleri anında uygulanıyor ve DataStore v2 ile saklanıyor; gerçek process restart testi bekliyor.
 
 ---
 
