@@ -38,6 +38,7 @@ data class LauncherPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
+    val apiFootballKey: String = "",
 )
 
 class LauncherPreferencesRepository(
@@ -132,6 +133,13 @@ class LauncherPreferencesRepository(
         }
     }
 
+    suspend fun setApiFootballKey(apiKey: String) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[API_FOOTBALL_KEY] = apiKey.trim()
+        }
+    }
+
     suspend fun cleanupUnavailablePackages(availablePackages: Set<String>) {
         dataStore.edit { preferences ->
             val favorites = decodeOrderedPackages(preferences[FAVORITE_PACKAGES])
@@ -153,6 +161,7 @@ class LauncherPreferencesRepository(
         themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
+        apiFootballKey = preferences[API_FOOTBALL_KEY].orEmpty(),
     )
 
     private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
@@ -187,7 +196,8 @@ class LauncherPreferencesRepository(
         val THEME_MODE = stringPreferencesKey("theme_mode_v1")
         val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
         val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
+        val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
     }
 }
 
-private const val CURRENT_SCHEMA_VERSION = 2
+private const val CURRENT_SCHEMA_VERSION = 3
