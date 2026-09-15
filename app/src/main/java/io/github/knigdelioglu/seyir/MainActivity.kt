@@ -40,8 +40,13 @@ class MainActivity : ComponentActivity() {
         enterImmersiveMode()
 
         setContent {
-            SeyirTheme {
-                val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+            val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+
+            SeyirTheme(
+                themeMode = uiState.themeMode,
+                accentMode = uiState.accentMode,
+                reducedMotion = uiState.reducedMotion,
+            ) {
                 var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
                 var homeFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
                 var allAppsFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
@@ -83,6 +88,12 @@ class MainActivity : ComponentActivity() {
                     SCREEN_SETTINGS -> SettingsScreen(
                         visibleAppCount = uiState.apps.size,
                         hiddenAppCount = uiState.hiddenApps.size,
+                        themeMode = uiState.themeMode,
+                        accentMode = uiState.accentMode,
+                        reducedMotion = uiState.reducedMotion,
+                        onThemeModeChanged = viewModel::setThemeMode,
+                        onAccentModeChanged = viewModel::setAccentMode,
+                        onReducedMotionChanged = viewModel::setReducedMotion,
                         onOpenApps = {
                             allAppsReturnScreen = SCREEN_SETTINGS
                             screen = SCREEN_ALL_APPS
