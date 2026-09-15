@@ -49,8 +49,10 @@ class MainActivity : ComponentActivity() {
                 if (showAllApps) {
                     AllAppsScreen(
                         apps = uiState.apps,
+                        favoritePackageNames = uiState.favoritePackageNames,
                         transientMessage = uiState.transientMessage,
                         onAppClick = viewModel::openApp,
+                        onToggleFavorite = viewModel::toggleFavorite,
                         onBack = { showAllApps = false },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
