@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
                     uiState = uiState,
                     onAppClick = viewModel::openApp,
                     onRetry = viewModel::refresh,
+                    onDismissMessage = viewModel::dismissTransientMessage,
                 )
             }
         }
