@@ -186,6 +186,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] temel görünüm ayarları (tema / vurgu / hareket)
 - [ ] favori yönetimi
 - [~] gizli uygulamalar yönetiminin temel ekranı mevcut; Ayarlar → Uygulamaları yönet üzerinden erişilebiliyor
+- [x] `Bugün ne var` veri kaynağı ayar ekranı ve API anahtarı ekleme/kaldırma
 - [ ] başlangıç davranışı
 - [ ] sistem ayarlarına güvenli kısayollar
 - [~] sürüm bilgisi Ayarlar kabuğunda gösteriliyor; tam Hakkında ekranı bekliyor
@@ -199,10 +200,30 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] accent: Nötr / Mavi / Zümrüt
 - [ ] overscan-safe padding ayarı gerekiyorsa ekle
 
+### Opsiyonel bilgi katmanı — Bugün ne var
+
+- [x] API-Football provider (`/fixtures?date=...&timezone=...`)
+- [x] API anahtarını kaynak kod/APK içine gömmeme; kullanıcı tarafından cihazda girilmesi
+- [x] DataStore schema v3 ile API anahtarı tercihi
+- [x] Android app backup kapalı; launcher verileri yedek dışı
+- [x] cihaz saat dilimine göre günlük fikstür sorgusu
+- [x] 30 dakika bellek cache'i; arka planda sürekli polling yok
+- [x] Home'da opsiyonel `Bugün ne var` satırı
+- [x] Süper Lig / Türkiye Kupası / UEFA → Türkiye → büyük Avrupa ligleri → diğerleri önceliklendirmesi
+- [x] Home'da en fazla 12 maç gösterme
+- [x] maç öncesi saat, canlı dakika+skor, maç sonu skor gösterimi
+- [x] manuel Yenile aksiyonu
+- [~] gerçek API-Football anahtarıyla canlı veri testi bekliyor
+- [~] 1080p/4K ve gerçek TV kumandasında maç satırı layout/focus testi bekliyor
+- [ ] isteğe bağlı lig/takım filtreleri
+- [ ] takım logolarını değerlendirme
+- [ ] gerekirse son başarılı snapshot için disk cache
+
 ### Çıkış kriterleri
 
 - [ ] İlk kurulum yalnız D-pad ile tamamlanabiliyor.
-- [~] Tema/vurgu/hareket değişiklikleri anında uygulanıyor ve DataStore v2 ile saklanıyor; gerçek process restart testi bekliyor.
+- [~] Tema/vurgu/hareket değişiklikleri anında uygulanıyor ve DataStore ile saklanıyor; gerçek process restart testi bekliyor.
+- [~] `Bugün ne var` kapalıyken maç ağı isteği yapılmıyor; açıkken kota dostu cache uygulanıyor, gerçek cihaz/ağ testi bekliyor.
 
 ---
 
