@@ -44,10 +44,13 @@ class MainActivity : ComponentActivity() {
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
                 var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
                 var homeFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
+                var allAppsFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
+                var allAppsReturnScreen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
 
                 BackHandler(enabled = screen != SCREEN_HOME) {
                     screen = when (screen) {
                         SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
+                        SCREEN_ALL_APPS -> allAppsReturnScreen
                         else -> SCREEN_HOME
                     }
                 }
@@ -58,12 +61,14 @@ class MainActivity : ComponentActivity() {
                         hiddenAppCount = uiState.hiddenApps.size,
                         favoritePackageNames = uiState.favoritePackageNames,
                         transientMessage = uiState.transientMessage,
+                        focusTarget = allAppsFocusTarget,
+                        onFocusTargetChanged = { allAppsFocusTarget = it },
                         onAppClick = viewModel::openApp,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onHideApp = { viewModel.setAppHidden(it, true) },
                         onOpenAppInfo = viewModel::openAppInfo,
                         onOpenHiddenApps = { screen = SCREEN_HIDDEN_APPS },
-                        onBack = { screen = SCREEN_HOME },
+                        onBack = { screen = allAppsReturnScreen },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
 
@@ -78,7 +83,10 @@ class MainActivity : ComponentActivity() {
                     SCREEN_SETTINGS -> SettingsScreen(
                         visibleAppCount = uiState.apps.size,
                         hiddenAppCount = uiState.hiddenApps.size,
-                        onOpenApps = { screen = SCREEN_ALL_APPS },
+                        onOpenApps = {
+                            allAppsReturnScreen = SCREEN_SETTINGS
+                            screen = SCREEN_ALL_APPS
+                        },
                         onBack = { screen = SCREEN_HOME },
                     )
 
@@ -89,7 +97,10 @@ class MainActivity : ComponentActivity() {
                         onAppClick = viewModel::openApp,
                         onMoveFavorite = viewModel::moveFavorite,
                         onToggleFavorite = viewModel::toggleFavorite,
-                        onOpenAllApps = { screen = SCREEN_ALL_APPS },
+                        onOpenAllApps = {
+                            allAppsReturnScreen = SCREEN_HOME
+                            screen = SCREEN_ALL_APPS
+                        },
                         onOpenSettings = { screen = SCREEN_SETTINGS },
                         onRetry = viewModel::refresh,
                         onDismissMessage = viewModel::dismissTransientMessage,
