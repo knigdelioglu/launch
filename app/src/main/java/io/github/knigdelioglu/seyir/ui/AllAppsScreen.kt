@@ -2,13 +2,16 @@ package io.github.knigdelioglu.seyir.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import kotlinx.coroutines.delay
@@ -47,12 +51,15 @@ import kotlinx.coroutines.delay
 @Composable
 fun AllAppsScreen(
     apps: List<InstalledApp>,
+    favoritePackageNames: List<String>,
     transientMessage: String?,
     onAppClick: (InstalledApp) -> Unit,
+    onToggleFavorite: (InstalledApp) -> Unit,
     onBack: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
     val firstFocusRequester = remember { FocusRequester() }
+    var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
 
     LaunchedEffect(apps) {
         if (apps.isNotEmpty()) {
@@ -87,6 +94,16 @@ fun AllAppsScreen(
                 .padding(horizontal = 64.dp, vertical = 42.dp),
         ) {
             Text(
+                text = "‹  Ana ekran",
+                modifier = Modifier
+                    .focusable()
+                    .clickable(onClick = onBack),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.62f),
+            )
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
                 text = "Tüm Uygulamalar",
                 fontSize = 34.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -94,7 +111,7 @@ fun AllAppsScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${apps.size} uygulama  •  Geri dönmek için BACK",
+                text = "${apps.size} uygulama  •  Uzun OK: seçenekler  •  BACK: ana ekran",
                 fontSize = 15.sp,
                 color = Color.White.copy(alpha = 0.52f),
             )
@@ -118,7 +135,9 @@ fun AllAppsScreen(
                     ) { index, app ->
                         AllAppsCard(
                             app = app,
+                            isFavorite = app.packageName in favoritePackageNames,
                             onClick = { onAppClick(app) },
+                            onLongClick = { contextApp = app },
                             modifier = if (index == 0) {
                                 Modifier.focusRequester(firstFocusRequester)
                             } else {
@@ -147,12 +166,31 @@ fun AllAppsScreen(
             }
         }
     }
+
+    contextApp?.let { app ->
+        AppContextDialog(
+            app = app,
+            isFavorite = app.packageName in favoritePackageNames,
+            onOpen = {
+                contextApp = null
+                onAppClick(app)
+            },
+            onToggleFavorite = {
+                contextApp = null
+                onToggleFavorite(app)
+            },
+            onDismiss = { contextApp = null },
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AllAppsCard(
     app: InstalledApp,
+    isFavorite: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -171,7 +209,10 @@ private fun AllAppsCard(
             }
             .onFocusChanged { focused = it.isFocused }
             .focusable()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         horizontalAlignment = Alignment.Start,
     ) {
         Box(
@@ -189,6 +230,17 @@ private fun AllAppsCard(
                 contentDescription = app.label,
                 modifier = Modifier.size(58.dp),
             )
+
+            if (isFavorite) {
+                Text(
+                    text = "★",
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 10.dp),
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.82f),
+                )
+            }
         }
         Spacer(modifier = Modifier.height(10.dp))
         Text(
@@ -198,6 +250,94 @@ private fun AllAppsCard(
             fontSize = 14.sp,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
             color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+        )
+    }
+}
+
+@Composable
+private fun AppContextDialog(
+    app: InstalledApp,
+    isFavorite: Boolean,
+    onOpen: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val firstActionFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(80)
+        runCatching { firstActionFocusRequester.requestFocus() }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .width(420.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF1B1B21))
+                .padding(24.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Image(
+                    bitmap = app.icon.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(42.dp),
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Text(
+                    text = app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            ContextAction(
+                text = "Aç",
+                onClick = onOpen,
+                modifier = Modifier.focusRequester(firstActionFocusRequester),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ContextAction(
+                text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                onClick = onToggleFavorite,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ContextAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (focused) Color.White.copy(alpha = 0.15f)
+                else Color.Transparent,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+    ) {
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+            color = Color.White.copy(alpha = if (focused) 1f else 0.78f),
         )
     }
 }
