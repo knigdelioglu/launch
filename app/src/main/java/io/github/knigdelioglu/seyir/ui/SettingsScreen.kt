@@ -50,10 +50,12 @@ fun SettingsScreen(
     themeMode: ThemeMode,
     accentMode: AccentMode,
     reducedMotion: Boolean,
+    sportsApiConfigured: Boolean,
     onThemeModeChanged: (ThemeMode) -> Unit,
     onAccentModeChanged: (AccentMode) -> Unit,
     onReducedMotionChanged: (Boolean) -> Unit,
     onOpenApps: () -> Unit,
+    onOpenSports: () -> Unit,
     onBack: () -> Unit,
 ) {
     val firstFocusRequester = remember { FocusRequester() }
@@ -105,13 +107,27 @@ fun SettingsScreen(
             SettingsSectionTitle("Yönetim")
             Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
-            SettingsActionCard(
-                title = "Uygulamaları yönet",
-                description = "$visibleAppCount görünür • $hiddenAppCount gizli",
-                symbol = "▦",
-                onClick = onOpenApps,
-                modifier = Modifier.focusRequester(firstFocusRequester),
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
+            ) {
+                SettingsActionCard(
+                    title = "Uygulamaları yönet",
+                    description = "$visibleAppCount görünür • $hiddenAppCount gizli",
+                    symbol = "▦",
+                    onClick = onOpenApps,
+                    modifier = Modifier.focusRequester(firstFocusRequester),
+                )
+                SettingsActionCard(
+                    title = "Bugün ne var",
+                    description = if (sportsApiConfigured) {
+                        "API-Football bağlı"
+                    } else {
+                        "Maç verisi kapalı"
+                    },
+                    symbol = "⚽",
+                    onClick = onOpenSports,
+                )
+            }
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             SettingsSectionTitle("Görünüm")
