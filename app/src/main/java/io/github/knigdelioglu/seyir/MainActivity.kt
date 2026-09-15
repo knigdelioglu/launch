@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                         onAppClick = viewModel::openApp,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onHideApp = { viewModel.setAppHidden(it, true) },
+                        onOpenAppInfo = viewModel::openAppInfo,
                         onOpenHiddenApps = { screen = SCREEN_HIDDEN_APPS },
                         onBack = { screen = SCREEN_HOME },
                         onDismissMessage = viewModel::dismissTransientMessage,
