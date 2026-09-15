@@ -19,16 +19,16 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### İşler
 
-- [ ] Android/Kotlin proje iskeletini oluştur
-- [ ] Jetpack Compose + Compose for TV kur
-- [ ] package/application id belirle
+- [x] Android/Kotlin proje iskeletini oluştur
+- [x] Jetpack Compose + Compose for TV kur
+- [x] package/application id belirle (`io.github.knigdelioglu.seyir`)
 - [ ] `minSdk` hedef cihaz üzerinden doğrula
-- [ ] güncel stable `compileSdk/targetSdk` seç
-- [ ] `ACTION_MAIN + CATEGORY_HOME + CATEGORY_DEFAULT` manifest tanımı
-- [ ] TV banner/icon placeholder ekle
-- [ ] landscape-only davranışı doğrula
-- [ ] tek ekranlık Home prototipi
-- [ ] D-pad ile en az 4 test kartında focus hareketi
+- [x] güncel stable `compileSdk/targetSdk` seç
+- [x] `ACTION_MAIN + CATEGORY_HOME + CATEGORY_DEFAULT` manifest tanımı
+- [~] TV banner/icon placeholder ekle (ikon mevcut, TV banner bekliyor)
+- [~] landscape-only davranışı doğrula (manifest kilidi mevcut, cihaz testi bekliyor)
+- [x] tek ekranlık Home prototipi
+- [~] D-pad focus davranışı (kodlandı, cihaz testi bekliyor)
 - [ ] HOME tuşuyla geri dönüş testi
 - [ ] debug APK üret
 - [ ] gerçek TV box üzerinde varsayılan launcher seçimini test et
@@ -48,16 +48,16 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### İşler
 
-- [ ] `InstalledAppRepository` oluştur
-- [ ] `PackageManager` sorgularını UI katmanından ayır
-- [ ] TV launch intent'lerini tercih et
-- [ ] normal launch intent fallback davranışını tanımla
-- [ ] launch edilemeyen paketleri filtrele
-- [ ] uygulama adı ve ikonunu normalize et
-- [ ] sistem/self paket filtreleri
+- [x] `InstalledAppRepository` oluştur
+- [x] `PackageManager` sorgularını UI katmanından ayır
+- [x] TV launch intent'lerini tercih et
+- [x] normal launch intent fallback davranışını tanımla
+- [x] launch edilemeyen paketleri filtrele
+- [x] uygulama adı ve ikonunu normalize et
+- [~] sistem/self paket filtreleri (self filtrelendi; sistem uygulaması politikası M1 içinde netleştirilecek)
 - [ ] uygulama yükleme/kaldırma değişikliklerini algılama stratejisi
 - [ ] Tüm Uygulamalar grid'i
-- [ ] OK ile uygulama açma
+- [x] OK ile uygulama açma
 - [ ] başarısız launch için kullanıcı dostu hata
 
 ### Testler
@@ -128,18 +128,18 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Home UI
 
-- [ ] üst durum alanı
-- [ ] saat
+- [~] üst durum alanı (isim + saat ilk prototipte mevcut)
+- [x] saat
 - [ ] favori satırı
 - [ ] Tüm Uygulamalar girişi
 - [ ] Ayarlar girişi
-- [ ] boş state
-- [ ] ilk focus davranışı
+- [x] boş state
+- [x] ilk focus davranışı
 - [ ] focus restore
 
 ### Focus kalitesi
 
-- [ ] sağ/sol geçişleri deterministik
+- [~] sağ/sol geçişleri deterministik (tek satır prototip, cihaz testi bekliyor)
 - [ ] yukarı/aşağı geçişleri deterministik
 - [ ] focus off-screen kalmıyor
 - [ ] scroll sırasında focus zıplamıyor
@@ -148,10 +148,10 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Motion
 
-- [ ] focus scale yaklaşık 1.06–1.08 aralığında tune et
-- [ ] 150–200 ms sınıfında animasyonları tune et
+- [x] focus scale yaklaşık 1.06–1.08 aralığında tune et (başlangıç: 1.06)
+- [x] 150–200 ms sınıfında animasyonları tune et (başlangıç: 160 ms)
 - [ ] reduced motion seçeneği için temel altyapı
-- [ ] gereksiz blur/glow kaldır
+- [x] gereksiz blur/glow kaldır
 
 ### Çıkış kriterleri
 
@@ -178,322 +178,181 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Ayarlar
 
-- [ ] Görünüm
-- [ ] Favoriler
-- [ ] Gizlenen uygulamalar
-- [ ] Başlangıç
-- [ ] Sistem
-- [ ] Hakkında
+- [ ] görünüm ayarları
+- [ ] favori yönetimi
+- [ ] gizli uygulamalar yönetimi
+- [ ] başlangıç davranışı
+- [ ] sistem ayarlarına güvenli kısayollar
+- [ ] hakkında / sürüm ekranı
 
 ### Görünüm
 
-- [ ] Dark
-- [ ] Black
-- [ ] kart boyutu
-- [ ] animasyon normal/azaltılmış
-- [ ] arka plan seçimi için altyapı
-
-### Sistem kısayolları
-
-- [ ] Android Settings
-- [ ] Wi-Fi settings intent'i
-- [ ] Bluetooth settings intent'i (cihaz destekliyorsa)
-- [ ] app details
+- [ ] Dark / Black tema
+- [ ] wallpaper: minimal / özel
+- [ ] kart boyutu seçenekleri
+- [ ] animasyon: normal / azaltılmış
+- [ ] overscan-safe padding ayarı gerekiyorsa ekle
 
 ### Çıkış kriterleri
 
-- [ ] İlk kurulum kumandayla tamamlanabiliyor.
-- [ ] Ayarlar restart sonrası korunuyor.
-- [ ] Sistem ekranlarına geçiş vendor ROM farklarında kontrollü fallback sağlıyor.
+- [ ] İlk kurulum yalnız D-pad ile tamamlanabiliyor.
+- [ ] Ayar değişiklikleri anında uygulanıyor ve restart sonrası korunuyor.
 
 ---
 
-## M5 — Recent Apps ve Home İyileştirmeleri
+## M5 — Recent Apps ve Yaşam Döngüsü
 
-**Amaç:** Sadelikten ödün vermeden günlük erişimi hızlandırmak.
+**Amaç:** Sade kalırken günlük erişimi hızlandırmak ve launcher yaşam döngüsünü sağlamlaştırmak.
 
 ### İşler
 
-- [ ] Seyir üzerinden açılan uygulamaları yerel recent listesine yaz
-- [ ] favorilerde olan uygulamayı recent satırında tekrar göstermeme seçeneği
-- [ ] recent limit belirle
-- [ ] recent temizleme
-- [ ] feature toggle
-- [ ] ana ekran boşluk/focus tuning
-
-### Opsiyonel araştırma
-
-- [ ] `UsageStatsManager` değerini değerlendir
-- [ ] gereksiz özel izin gerekiyorsa kullanma
+- [ ] güvenilir recent apps veri kaynağını belirle
+- [ ] yalnız uygulanabilir cihaz/API davranışını kullan
+- [ ] favori tekrarlarını filtrele
+- [ ] paket değişiklik receiver/observer stratejisi
+- [ ] ekran açma/kapatma yaşam döngüsü
+- [ ] process recreation testi
+- [ ] low-memory recreation testi
+- [ ] boot sonrası davranış
 
 ### Çıkış kriterleri
 
-- [ ] Recent özelliği ekstra sistem izni olmadan anlamlı çalışıyor veya kapsam dışına alınıyor.
-- [ ] Ana ekran bilgi kalabalığına dönüşmüyor.
+- [ ] Recent satırı yanlış veya stale uygulama göstermiyor.
+- [ ] Launcher uzun süre açık kaldığında state bozulmuyor.
 
 ---
 
 ## M6 — AirPlay Teknik Spike ve Lisans Kapısı
 
-**Amaç:** UxPlay tabanlı receiver'ın Seyir'e teknik ve hukuki olarak nasıl eklenebileceğini kanıtlamak.
+**Amaç:** AirPlay entegrasyonunun teknik ve lisans açısından Seyir'e uygunluğunu kanıtlamak; launcher geliştirmesini buna kilitlememek.
 
-Bu faz doğrudan production entegrasyonu değildir.
+### Spike
 
-### Lisans
+- [ ] güncel UxPlay lisansını ve Android portlarının lisanslarını yeniden doğrula
+- [ ] GPL-3.0 yükümlülüklerinin dağıtım modelimize etkisini dokümante et
+- [ ] entegrasyon seçeneklerini değerlendir:
+  - [ ] ayrı uygulama / companion receiver
+  - [ ] ayrı process/service
+  - [ ] native kütüphane/JNI bundle
+- [ ] iOS 27 ile discovery testi
+- [ ] iPhone ekran yansıtma testi
+- [ ] H.264 testi
+- [ ] HEVC testi
+- [ ] ses testi
+- [ ] disconnect/reconnect testi
+- [ ] idle güç/RAM ölçümü
+- [ ] DRM/FairPlay sınırlarını kullanıcıya doğru ifade et
 
-- [ ] UxPlay GPL-3.0 yükümlülüklerini incele
-- [ ] Android AirPlay server referans projelerinin lisanslarını incele
-- [ ] JNI/native entegrasyonun türev eser etkisini değerlendir
-- [ ] Seyir'in dağıtım lisansı için karar oluştur
-- [ ] kaynak kod dağıtım yükümlülüklerini dokümante et
-- [ ] `GO / NO-GO` kararı
+### Karar kapısı
 
-### Teknik spike
+- [ ] **GO:** lisans + teknik model kabul edildi
+- [ ] **NO-GO:** AirPlay core launcher'dan ayrı tutulacak
 
-- [ ] native library Android build
-- [ ] ARM64 hedefi
-- [ ] gerekirse ARMv7 hedefi
-- [ ] JNI minimal bridge
-- [ ] mDNS discovery
-- [ ] iPhone'da receiver'ın görünmesi
-- [ ] H.264 tek oturum
-- [ ] ses prototipi
-- [ ] session lifecycle
-
-### Çıkış kriterleri
-
-- [ ] Lisans kararı yazılı.
-- [ ] Test cihazı iPhone tarafından AirPlay hedefi olarak görülebiliyor.
-- [ ] En az bir başarılı gerçek ekran yansıtma oturumu var.
-- [ ] Spike'ın production mimarisi için risk listesi hazır.
+> UxPlay veya GPL uyumlu başka bir implementasyon doğrudan uygulamaya bundle edilmeden önce bu faz kapanmalıdır.
 
 ---
 
-## M7 — AirPlay Production Entegrasyonu
+## M7 — AirPlay Entegrasyonu
 
-**Ön koşul:** M6 `GO`.
-
-### Service
-
-- [ ] AirPlay enable/disable ayarı
-- [ ] receiver adı (`Salon TV` vb.)
-- [ ] servis lifecycle
-- [ ] Android background execution kurallarına uyum
-- [ ] ağ değişimi yönetimi
-- [ ] yeniden ilan/discovery
-
-### Video
-
-- [ ] H.264 MediaCodec
-- [ ] HEVC capability detection
-- [ ] Surface lifecycle
-- [ ] orientation/aspect handling
-- [ ] 1080p test
-- [ ] destekliyorsa 4K test
-
-### Audio
-
-- [ ] desteklenen codec akışı
-- [ ] audio focus
-- [ ] A/V sync
-- [ ] mute/volume davranışı
-
-### UX
-
-- [ ] Home üzerinde AirPlay durum göstergesi
-- [ ] bağlantı ekranı
-- [ ] receiver activity
-- [ ] disconnect sonrası Home'a güvenli dönüş
-- [ ] bağlantı hatası UI
-- [ ] opsiyonel PIN
-
-### Dayanıklılık
-
-- [ ] sender bağlantıyı kesiyor
-- [ ] Wi-Fi kopuyor
-- [ ] uygulama process'i yeniden yaratılıyor
-- [ ] ekran kapanıyor/açılıyor
-- [ ] arka arkaya bağlantılar
-- [ ] uzun süreli playback
-
-### Çıkış kriterleri
-
-- [ ] iPhone/iPad/Mac temel mirroring doğrulandı.
-- [ ] Disconnect sonrası launcher sağlam kalıyor.
-- [ ] AirPlay kapalıyken gereksiz native/service maliyeti yok.
-- [ ] DRM bypass yapılmıyor.
-- [ ] lisans bildirimleri release paketinde doğru.
-
----
-
-## M8 — Ambient Mode ve Görsel Kişiselleştirme
-
-**Amaç:** TV boşta kaldığında sade bir ekran sunmak.
+**Önkoşul:** M6 = GO.
 
 ### İşler
 
-- [ ] inactivity timer
-- [ ] saat/tarih
-- [ ] düşük hareketli layout
-- [ ] OLED için pixel drift yaklaşımı
-- [ ] kullanıcının kapatabilmesi
-- [ ] yerel wallpaper
-- [ ] özel wallpaper seçimi
-- [ ] Cinematic mode prototipi
-- [ ] GPU/memory profiling
-
-### Opsiyonel
-
-- [ ] hava durumu plugin'i
-
-Hava durumu eklenirse:
-
-- default kapalı
-- kullanıcı açıkça etkinleştirir
-- launcher temel işlevi API'ye bağımlı olmaz
+- [ ] AirPlay receiver service
+- [ ] mDNS/Bonjour advertisement
+- [ ] cihaz adı ayarı (`Salon TV` vb.)
+- [ ] receiver lifecycle
+- [ ] bağlantı durum modeli
+- [ ] incoming session UI
+- [ ] MediaCodec video decode
+- [ ] audio output
+- [ ] session bitince Home'a güvenli dönüş
+- [ ] PIN seçeneği
+- [ ] foreground-service gereksinimlerini güncel Android kurallarına göre uygula
+- [ ] AirPlay kapalıyken sıfır/çok düşük idle maliyet
 
 ### Çıkış kriterleri
 
-- [ ] Ambient Mode launcher performansını etkilemiyor.
-- [ ] statik OLED öğeleri uzun süre aynı yerde kalmıyor.
-- [ ] ağ olmadan temel ambient deneyim çalışıyor.
+- [ ] iPhone/iPad/Mac cihaz listesinde Seyir görünür.
+- [ ] Mirroring bağlantısı tekrar tekrar güvenilir kurulabilir.
+- [ ] Session bitince launcher focus/state'i bozulmaz.
 
 ---
 
-## M9 — Stabilizasyon, Profiling ve Release Engineering
+## M8 — Performans, Uyumluluk ve Sertleştirme
 
-**Amaç:** Feature-complete build'i v1.0 seviyesine getirmek.
+**Amaç:** Seyir'i gerçek TV box çeşitliliğinde güvenilir hale getirmek.
 
-### Performans
+### Performans hedefleri
 
-- [ ] cold start ölçümü
-- [ ] warm start ölçümü
-- [ ] idle RAM ölçümü
-- [ ] idle CPU ölçümü
-- [ ] frame jank ölçümü
-- [ ] 50+ app grid stress
-- [ ] hızlı D-pad stress
-- [ ] memory leak kontrolü
+- [ ] idle CPU yaklaşık `%0`
+- [ ] launcher idle RAM hedefi `< 100 MB`
+- [ ] 60 fps focus/scroll
+- [ ] cold launch hedefi `< 1 s`
+- [ ] focus response hedefi `< 50 ms`
+- [ ] gereksiz wake lock yok
+- [ ] background polling yok
 
-### Uyumluluk matrisi
+### Cihaz matrisi
 
-En az:
-
-- [ ] hedef kişisel TV box
-- [ ] Android TV/Google TV referans cihaz veya emulator
+- [ ] Android TV sertifikalı cihaz
+- [ ] AOSP TV box
+- [ ] Android 8 sınıfı eski cihaz
+- [ ] güncel Android TV sürümü
 - [ ] 1080p
 - [ ] 4K
-- [ ] farklı density değerleri
+- [ ] düşük RAM cihaz
 
-### Güvenlik / gizlilik
+### Kalite
 
-- [ ] manifest permission audit
-- [ ] dependency audit
-- [ ] secret scan
-- [ ] network call audit
-- [ ] analytics/advertising dependency bulunmadığını doğrula
-- [ ] release signing prosedürü
+- [ ] StrictMode/debug kontrolleri
+- [ ] baseline profile değerlendir
+- [ ] Macrobenchmark
+- [ ] startup benchmark
+- [ ] Compose recomposition incelemesi
+- [ ] memory leak kontrolü
+- [ ] crash-free uzun süreli test
 
-### Release engineering
+---
 
-- [ ] versioning stratejisi
+## M9 — Dağıtım ve Güncelleme
+
+**Amaç:** Seyir'i güvenli ve sürdürülebilir şekilde dağıtmak.
+
+### İşler
+
+- [ ] release signing
+- [ ] reproducible/reviewable release süreci
+- [ ] GitHub Actions CI
+- [ ] lint + unit test + assemble
+- [ ] release APK artifact
+- [ ] GitHub Releases
+- [ ] SHA-256 checksum
 - [ ] changelog
-- [ ] signed APK
-- [ ] checksum
-- [ ] GitHub Release workflow
-- [ ] temiz cihaz kurulum testi
-- [ ] upgrade testi
-- [ ] rollback dokümantasyonu
+- [ ] isteğe bağlı uygulama içi update kontrolü
+- [ ] update kontrolü kapatılabilir olmalı
 
-### Dokümantasyon
+### Gizlilik kuralı
 
-- [ ] README güncel
-- [ ] SCOPE güncel
-- [ ] ROADMAP güncel
-- [ ] kurulum adımları
-- [ ] varsayılan launcher seçimi
-- [ ] ADB fallback (gerekiyorsa)
-- [ ] AirPlay sınırlamaları (varsa)
-- [ ] lisans bildirimleri
+Update kontrolü eklenirse yalnız sürüm metadata'sı sorgulanmalı; telemetry veya analytics'e dönüşmemelidir.
 
 ---
 
-# v1.0 — Stable
+## v1.0 — Kabul Kriterleri
 
-v1.0 adayının minimum özellik seti:
+Seyir 1.0 aşağıdakilerin tamamı sağlanmadan yayınlanmış sayılmaz:
 
-- [ ] Home launcher
-- [ ] uygulama discovery/launch
-- [ ] favoriler
-- [ ] sıralama
-- [ ] gizleme
-- [ ] Tüm Uygulamalar
-- [ ] Ayarlar
-- [ ] premium focus-first UI
-- [ ] kalıcı local preferences
-- [ ] offline temel kullanım
-- [ ] gerçek donanım testleri
-- [ ] sıfır reklam
-- [ ] sıfır zorunlu analytics/telemetry
-
-AirPlay, M6/M7'nin risk ve lisans sonuçlarına göre v1.0'a dahil edilebilir veya v1.1'e ertelenebilir. Launcher'ın release'i AirPlay'e bağımlı değildir.
-
-## v1.0 Release Gate
-
-- [ ] `SCOPE.md` içindeki v1.0 kabul kriterleri tamamlandı.
-- [ ] blocker/critical bug yok.
-- [ ] bilinen önemli vendor uyumsuzlukları dokümante.
-- [ ] release APK gerçek cihazda temiz kurulumdan geçti.
-- [ ] Home seçimi ve HOME tuşu davranışı doğrulandı.
-- [ ] performans hedeflerinde kritik regresyon yok.
-
----
-
-# Post-1.0 Backlog
-
-Bunlar taahhüt değildir; v1.0 sonrasında ayrı değerlendirilir.
-
-- [ ] uygulama arama
-- [ ] sesli uygulama arama
-- [ ] plugin/provider API
-- [ ] Kodi/Plex/Nuvio gibi uygulamalarla kontrollü deep-link entegrasyonları
-- [ ] gelişmiş wallpaper sistemi
-- [ ] farklı Home layout preset'leri
-- [ ] çoklu profil
-- [ ] ebeveyn kontrolü
-- [ ] local backup/export-import
-- [ ] launcher ayarlarını cihazlar arasında opsiyonel senkronlama
-- [ ] Fire TV uyumluluk araştırması
-
-## Bilinçli Olarak Eklenmeyecek Özellikler
-
-- reklam
-- sponsorlu feed
-- zorunlu hesap
-- kullanıcı davranışı takibi
-- DRM bypass
-- üçüncü taraf servislerden izinsiz veri scraping
-
----
-
-## İlk Uygulama Sırası
-
-Kodlamaya başlarken önerilen sıra:
-
-```text
-M0 HOME prototype
-   ↓
-M1 app discovery
-   ↓
-M2 favorites + persistence
-   ↓
-M3 design system + focus polish
-   ↓
-M4 settings/onboarding
-   ↓
-M5 recent apps
-   ↓
-M6 AirPlay spike + license gate
-```
-
-M0–M3 tamamlanmadan AirPlay entegrasyonuna girilmemelidir. Seyir'in ana ürün değeri önce sağlam bir launcher olmaktır.
+- [ ] Android TV/TV box üzerinde varsayılan HOME launcher olarak kullanılabiliyor
+- [ ] yalnız D-pad ile tam kullanım
+- [ ] favori ekleme/çıkarma/sıralama
+- [ ] uygulama gizleme/geri getirme
+- [ ] deterministic focus
+- [ ] hızlı ve stabil uygulama açma
+- [ ] 1080p + 4K doğrulaması
+- [ ] reklam yok
+- [ ] telemetry yok
+- [ ] zorunlu hesap yok
+- [ ] launcher core için internet zorunluluğu yok
+- [ ] release APK + checksum
+- [ ] lisanslar ve üçüncü taraf bildirimleri doğru
+- [ ] AirPlay dahilse M6 lisans kapısı tamamlanmış
