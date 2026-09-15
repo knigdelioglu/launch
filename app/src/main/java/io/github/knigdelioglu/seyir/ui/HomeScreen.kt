@@ -36,47 +36,63 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
+import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
+import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
+import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
+import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
+import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
+import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
+object HomeFocusKey {
+    const val ALL_APPS = "__all_apps__"
+    const val SETTINGS = "__settings__"
+}
+
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    focusTarget: String?,
+    onFocusTargetChanged: (String) -> Unit,
     onAppClick: (InstalledApp) -> Unit,
     onMoveFavorite: (InstalledApp, Int) -> Unit,
     onToggleFavorite: (InstalledApp) -> Unit,
     onOpenAllApps: () -> Unit,
+    onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    val firstAppFocusRequester = remember { FocusRequester() }
-    val allAppsFocusRequester = remember { FocusRequester() }
     val clock = rememberClock()
     val homeApps = uiState.favoriteApps
+    val favoriteFocusRequesters = remember(homeApps.map { it.packageName }) {
+        homeApps.associate { it.packageName to FocusRequester() }
+    }
+    val allAppsFocusRequester = remember { FocusRequester() }
+    val settingsFocusRequester = remember { FocusRequester() }
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
 
-    LaunchedEffect(homeApps, uiState.apps) {
+    LaunchedEffect(homeApps, uiState.apps, focusTarget) {
         if (uiState.apps.isEmpty()) return@LaunchedEffect
+        delay(140)
 
-        delay(150)
-        if (homeApps.isNotEmpty()) {
-            runCatching { firstAppFocusRequester.requestFocus() }
-        } else {
-            runCatching { allAppsFocusRequester.requestFocus() }
-        }
+        val requester = when (focusTarget) {
+            HomeFocusKey.ALL_APPS -> allAppsFocusRequester
+            HomeFocusKey.SETTINGS -> settingsFocusRequester
+            else -> favoriteFocusRequesters[focusTarget]
+        } ?: homeApps.firstOrNull()?.let { favoriteFocusRequesters[it.packageName] }
+            ?: allAppsFocusRequester
+
+        runCatching { requester.requestFocus() }
     }
 
     LaunchedEffect(uiState.transientMessage) {
@@ -91,10 +107,10 @@ fun HomeScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF111116),
-                        Color(0xFF09090C),
-                        Color(0xFF050507),
+                    listOf(
+                        SeyirColors.BackgroundTop,
+                        SeyirColors.BackgroundMiddle,
+                        SeyirColors.BackgroundBottom,
                     ),
                 ),
             ),
@@ -102,79 +118,81 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 64.dp, vertical = 42.dp),
+                .padding(
+                    horizontal = SeyirSpacing.ScreenHorizontal,
+                    vertical = SeyirSpacing.ScreenVertical,
+                ),
         ) {
-            TopBar(clock = clock)
-            Spacer(modifier = Modifier.height(72.dp))
+            TopBar(
+                clock = clock,
+                settingsFocusRequester = settingsFocusRequester,
+                onSettingsFocused = { onFocusTargetChanged(HomeFocusKey.SETTINGS) },
+                onOpenSettings = onOpenSettings,
+            )
+
+            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
 
             Text(
                 text = greetingFor(LocalTime.now()),
-                style = MaterialTheme.typography.headlineLarge,
-                fontSize = 38.sp,
+                fontSize = SeyirType.Hero,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = SeyirColors.TextPrimary,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Ne izlemek istersiniz?",
-                style = MaterialTheme.typography.bodyLarge,
-                fontSize = 18.sp,
-                color = Color.White.copy(alpha = 0.58f),
+                text = "İzlemek istediğiniz şeye doğrudan geçin.",
+                fontSize = SeyirType.Subtitle,
+                color = SeyirColors.TextSecondary,
             )
-            Spacer(modifier = Modifier.height(42.dp))
+
+            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
 
             when {
                 uiState.apps.isNotEmpty() -> {
-                    Text(
-                        text = "Favoriler",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.82f),
+                    SectionHeader(
+                        title = "Favoriler",
+                        meta = "${homeApps.size} sabitlenmiş",
                     )
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
                     ) {
                         itemsIndexed(
                             items = homeApps,
                             key = { _, app -> app.packageName },
-                        ) { index, app ->
+                        ) { _, app ->
                             AppCard(
                                 app = app,
                                 onClick = { onAppClick(app) },
                                 onLongClick = { contextApp = app },
-                                modifier = if (index == 0) {
-                                    Modifier.focusRequester(firstAppFocusRequester)
-                                } else {
-                                    Modifier
-                                },
+                                onFocused = { onFocusTargetChanged(app.packageName) },
+                                modifier = Modifier.focusRequester(
+                                    favoriteFocusRequesters.getValue(app.packageName),
+                                ),
                             )
                         }
 
-                        item(key = "all-apps") {
+                        item(key = HomeFocusKey.ALL_APPS) {
                             ActionCard(
                                 label = "Tüm Uygulamalar",
-                                symbol = "•••",
+                                symbol = "▦",
                                 onClick = onOpenAllApps,
-                                modifier = if (homeApps.isEmpty()) {
-                                    Modifier.focusRequester(allAppsFocusRequester)
-                                } else {
-                                    Modifier
-                                },
+                                onFocused = { onFocusTargetChanged(HomeFocusKey.ALL_APPS) },
+                                modifier = Modifier.focusRequester(allAppsFocusRequester),
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(SeyirSpacing.Item))
                     Text(
                         text = if (homeApps.isEmpty()) {
-                            "Favori uygulama yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
+                            "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
                         } else {
-                            "Uzun OK: favoriyi taşı veya kaldır"
+                            "Uzun OK ile favoriyi taşıyabilir veya kaldırabilirsiniz."
                         },
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.46f),
+                        fontSize = SeyirType.Meta,
+                        color = SeyirColors.TextTertiary,
                     )
                 }
 
@@ -187,26 +205,38 @@ fun HomeScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Yerel  •  Reklamsız  •  Seyir",
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.34f),
-            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Yerel  •  Reklamsız  •  Hesapsız",
+                    fontSize = SeyirType.Meta,
+                    color = SeyirColors.TextTertiary,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${uiState.apps.size} uygulama",
+                    fontSize = SeyirType.Meta,
+                    color = SeyirColors.TextTertiary,
+                )
+            }
         }
 
         uiState.transientMessage?.let { message ->
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xEE24242B))
+                    .padding(bottom = SeyirSpacing.ScreenVertical)
+                    .clip(RoundedCornerShape(SeyirRadius.Action))
+                    .background(SeyirColors.SurfaceElevated)
                     .padding(horizontal = 22.dp, vertical = 12.dp),
             ) {
                 Text(
                     text = message,
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = SeyirType.Meta,
+                    color = SeyirColors.TextPrimary,
                 )
             }
         }
@@ -236,24 +266,111 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopBar(clock: String) {
+private fun TopBar(
+    clock: String,
+    settingsFocusRequester: FocusRequester,
+    onSettingsFocused: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(
+                text = "SEYİR",
+                fontSize = SeyirType.Brand,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.dp.value.sp,
+                color = SeyirColors.TextPrimary.copy(alpha = 0.92f),
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = "TV ana ekranı",
+                fontSize = SeyirType.Meta,
+                color = SeyirColors.TextTertiary,
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        TopBarAction(
+            label = "Ayarlar",
+            symbol = "⚙",
+            onClick = onOpenSettings,
+            onFocused = onSettingsFocused,
+            modifier = Modifier.focusRequester(settingsFocusRequester),
+        )
+        Spacer(modifier = Modifier.width(24.dp))
+        Text(
+            text = clock,
+            fontSize = SeyirType.Clock,
+            fontWeight = FontWeight.Medium,
+            color = SeyirColors.TextSecondary,
+        )
+    }
+}
+
+@Composable
+private fun TopBarAction(
+    label: String,
+    symbol: String,
+    onClick: () -> Unit,
+    onFocused: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(SeyirRadius.Pill))
+            .background(
+                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+            )
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = symbol,
+            fontSize = SeyirType.CardLabel,
+            color = SeyirColors.TextPrimary,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            fontSize = SeyirType.Meta,
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    meta: String,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "SEYİR",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp,
-            color = Color.White.copy(alpha = 0.88f),
+            text = title,
+            fontSize = SeyirType.SectionTitle,
+            fontWeight = FontWeight.SemiBold,
+            color = SeyirColors.TextPrimary.copy(alpha = 0.9f),
         )
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = clock,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color.White.copy(alpha = 0.78f),
+            text = meta,
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextTertiary,
         )
     }
 }
@@ -264,57 +381,59 @@ private fun AppCard(
     app: InstalledApp,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.06f else 1f,
-        animationSpec = tween(durationMillis = 160),
+        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
+        animationSpec = tween(SeyirMotion.FocusDurationMs),
         label = "app-card-scale",
     )
 
     Column(
         modifier = modifier
-            .width(168.dp)
+            .width(SeyirSize.AppCardWidth)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
             .focusable()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             ),
-        horizontalAlignment = Alignment.Start,
     ) {
         Box(
             modifier = Modifier
-                .size(width = 168.dp, height = 102.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .size(
+                    width = SeyirSize.AppCardWidth,
+                    height = SeyirSize.AppCardHeight,
+                )
+                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) {
-                        Color.White.copy(alpha = 0.14f)
-                    } else {
-                        Color.White.copy(alpha = 0.065f)
-                    },
+                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Image(
                 bitmap = app.icon.asImageBitmap(),
                 contentDescription = app.label,
-                modifier = Modifier.size(60.dp),
+                modifier = Modifier.size(SeyirSize.AppIcon),
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 15.sp,
+            fontSize = SeyirType.CardLabel,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
@@ -324,53 +443,57 @@ private fun ActionCard(
     label: String,
     symbol: String,
     onClick: () -> Unit,
+    onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.06f else 1f,
-        animationSpec = tween(durationMillis = 160),
+        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
+        animationSpec = tween(SeyirMotion.FocusDurationMs),
         label = "action-card-scale",
     )
 
     Column(
         modifier = modifier
-            .width(168.dp)
+            .width(SeyirSize.AppCardWidth)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
             .focusable()
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.Start,
     ) {
         Box(
             modifier = Modifier
-                .size(width = 168.dp, height = 102.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .size(
+                    width = SeyirSize.AppCardWidth,
+                    height = SeyirSize.AppCardHeight,
+                )
+                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) Color.White.copy(alpha = 0.16f)
-                    else Color.White.copy(alpha = 0.05f),
+                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = symbol,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp,
-                color = Color.White.copy(alpha = if (focused) 1f else 0.68f),
+                fontSize = SeyirType.Hero,
+                fontWeight = FontWeight.Light,
+                color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 15.sp,
+            fontSize = SeyirType.CardLabel,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
@@ -392,12 +515,12 @@ private fun FavoriteContextDialog(
         runCatching { firstActionFocusRequester.requestFocus() }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .width(420.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF1B1B21))
+                .clip(RoundedCornerShape(SeyirRadius.Dialog))
+                .background(SeyirColors.SurfaceElevated)
                 .padding(24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -411,9 +534,9 @@ private fun FavoriteContextDialog(
                     text = app.label,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 20.sp,
+                    fontSize = 20.dp.value.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    color = SeyirColors.TextPrimary,
                 )
             }
             Spacer(modifier = Modifier.height(22.dp))
@@ -462,10 +585,9 @@ private fun FavoriteAction(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(SeyirRadius.Action))
             .background(
-                if (focused) Color.White.copy(alpha = 0.15f)
-                else Color.Transparent,
+                if (focused) SeyirColors.SurfaceFocused else androidx.compose.ui.graphics.Color.Transparent,
             )
             .onFocusChanged { focused = it.isFocused }
             .focusable()
@@ -474,9 +596,9 @@ private fun FavoriteAction(
     ) {
         Text(
             text = text,
-            fontSize = 16.sp,
+            fontSize = SeyirType.CardLabel,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = Color.White.copy(alpha = if (focused) 1f else 0.78f),
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
@@ -486,13 +608,13 @@ private fun LoadingState() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(
             modifier = Modifier.size(24.dp),
-            color = Color.White.copy(alpha = 0.75f),
+            color = SeyirColors.TextSecondary,
             strokeWidth = 2.dp,
         )
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = "Uygulamalar hazırlanıyor…",
-            color = Color.White.copy(alpha = 0.62f),
+            color = SeyirColors.TextSecondary,
         )
     }
 }
@@ -507,7 +629,7 @@ private fun ErrorState(
         modifier = Modifier
             .focusable()
             .clickable(onClick = onRetry),
-        color = Color.White.copy(alpha = 0.72f),
+        color = SeyirColors.TextSecondary,
     )
 }
 
@@ -515,7 +637,7 @@ private fun ErrorState(
 private fun EmptyState() {
     Text(
         text = "Açılabilir uygulama bulunamadı.",
-        color = Color.White.copy(alpha = 0.62f),
+        color = SeyirColors.TextSecondary,
     )
 }
 
