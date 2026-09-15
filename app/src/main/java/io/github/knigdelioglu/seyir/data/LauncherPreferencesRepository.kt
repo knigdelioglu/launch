@@ -19,11 +19,25 @@ private val Context.launcherPreferencesDataStore: DataStore<Preferences> by pref
     name = "launcher_preferences",
 )
 
+enum class ThemeMode {
+    DARK,
+    BLACK,
+}
+
+enum class AccentMode {
+    NEUTRAL,
+    BLUE,
+    EMERALD,
+}
+
 data class LauncherPreferences(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val favoritesInitialized: Boolean = false,
     val favoritePackages: List<String> = emptyList(),
     val hiddenPackages: Set<String> = emptySet(),
+    val themeMode: ThemeMode = ThemeMode.DARK,
+    val accentMode: AccentMode = AccentMode.NEUTRAL,
+    val reducedMotion: Boolean = false,
 )
 
 class LauncherPreferencesRepository(
@@ -97,6 +111,27 @@ class LauncherPreferencesRepository(
         }
     }
 
+    suspend fun setThemeMode(themeMode: ThemeMode) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[THEME_MODE] = themeMode.name
+        }
+    }
+
+    suspend fun setAccentMode(accentMode: AccentMode) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[ACCENT_MODE] = accentMode.name
+        }
+    }
+
+    suspend fun setReducedMotion(reducedMotion: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[REDUCED_MOTION] = reducedMotion
+        }
+    }
+
     suspend fun cleanupUnavailablePackages(availablePackages: Set<String>) {
         dataStore.edit { preferences ->
             val favorites = decodeOrderedPackages(preferences[FAVORITE_PACKAGES])
@@ -115,7 +150,15 @@ class LauncherPreferencesRepository(
         favoritesInitialized = preferences[FAVORITES_INITIALIZED] ?: false,
         favoritePackages = decodeOrderedPackages(preferences[FAVORITE_PACKAGES]),
         hiddenPackages = preferences[HIDDEN_PACKAGES].orEmpty(),
+        themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
+        accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
+        reducedMotion = preferences[REDUCED_MOTION] ?: false,
     )
+
+    private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
+        this?.let { encoded ->
+            enumValues<T>().firstOrNull { it.name == encoded }
+        } ?: default
 
     private fun encodeOrderedPackages(packageNames: List<String>): String = packageNames
         .asSequence()
@@ -134,7 +177,6 @@ class LauncherPreferencesRepository(
         .toList()
 
     private companion object {
-        const val CURRENT_SCHEMA_VERSION = 1
         const val DEFAULT_FAVORITE_COUNT = 7
         const val PACKAGE_SEPARATOR = "\n"
 
@@ -142,7 +184,10 @@ class LauncherPreferencesRepository(
         val FAVORITES_INITIALIZED = booleanPreferencesKey("favorites_initialized")
         val FAVORITE_PACKAGES = stringPreferencesKey("favorite_packages_v1")
         val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages_v1")
+        val THEME_MODE = stringPreferencesKey("theme_mode_v1")
+        val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
+        val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
     }
 }
 
-private const val CURRENT_SCHEMA_VERSION = 1
+private const val CURRENT_SCHEMA_VERSION = 2
