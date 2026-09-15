@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,12 +55,18 @@ import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
 
+object AllAppsFocusKey {
+    const val HIDDEN_APPS = "__hidden_apps__"
+}
+
 @Composable
 fun AllAppsScreen(
     apps: List<InstalledApp>,
     hiddenAppCount: Int,
     favoritePackageNames: List<String>,
     transientMessage: String?,
+    focusTarget: String?,
+    onFocusTargetChanged: (String) -> Unit,
     onAppClick: (InstalledApp) -> Unit,
     onToggleFavorite: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
@@ -68,14 +75,35 @@ fun AllAppsScreen(
     onBack: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    val firstFocusRequester = remember { FocusRequester() }
+    val appFocusRequesters = remember(apps.map { it.packageName }) {
+        apps.associate { it.packageName to FocusRequester() }
+    }
+    val hiddenAppsFocusRequester = remember { FocusRequester() }
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var restoreRequest by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(apps) {
-        if (apps.isNotEmpty()) {
-            delay(120)
-            runCatching { firstFocusRequester.requestFocus() }
-        }
+    LaunchedEffect(apps, focusTarget) {
+        if (apps.isEmpty() && hiddenAppCount == 0) return@LaunchedEffect
+        delay(120)
+        requestAllAppsFocus(
+            apps = apps,
+            focusTarget = focusTarget,
+            appFocusRequesters = appFocusRequesters,
+            hiddenAppCount = hiddenAppCount,
+            hiddenAppsFocusRequester = hiddenAppsFocusRequester,
+        )
+    }
+
+    LaunchedEffect(restoreRequest) {
+        if (restoreRequest == 0) return@LaunchedEffect
+        delay(90)
+        requestAllAppsFocus(
+            apps = apps,
+            focusTarget = focusTarget,
+            appFocusRequesters = appFocusRequesters,
+            hiddenAppCount = hiddenAppCount,
+            hiddenAppsFocusRequester = hiddenAppsFocusRequester,
+        )
     }
 
     LaunchedEffect(transientMessage) {
@@ -83,6 +111,11 @@ fun AllAppsScreen(
             delay(2_500)
             onDismissMessage()
         }
+    }
+
+    fun closeDialogAndRestore() {
+        contextApp = null
+        restoreRequest += 1
     }
 
     Box(
@@ -111,7 +144,7 @@ fun AllAppsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HeaderAction(
-                    text = "‹  Ana ekran",
+                    text = "‹  Geri",
                     onClick = onBack,
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -119,6 +152,8 @@ fun AllAppsScreen(
                     HeaderAction(
                         text = "Gizlenenler  $hiddenAppCount  ›",
                         onClick = onOpenHiddenApps,
+                        onFocused = { onFocusTargetChanged(AllAppsFocusKey.HIDDEN_APPS) },
+                        modifier = Modifier.focusRequester(hiddenAppsFocusRequester),
                     )
                 }
             }
@@ -132,7 +167,7 @@ fun AllAppsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "${apps.size} uygulama  •  Uzun OK: seçenekler  •  BACK: ana ekran",
+                text = "${apps.size} uygulama  •  Uzun OK: seçenekler  •  BACK: geri",
                 fontSize = SeyirType.CardLabel,
                 color = SeyirColors.TextTertiary,
             )
@@ -153,17 +188,16 @@ fun AllAppsScreen(
                     itemsIndexed(
                         items = apps,
                         key = { _, app -> app.packageName },
-                    ) { index, app ->
+                    ) { _, app ->
                         AllAppsCard(
                             app = app,
                             isFavorite = app.packageName in favoritePackageNames,
                             onClick = { onAppClick(app) },
                             onLongClick = { contextApp = app },
-                            modifier = if (index == 0) {
-                                Modifier.focusRequester(firstFocusRequester)
-                            } else {
-                                Modifier
-                            },
+                            onFocused = { onFocusTargetChanged(app.packageName) },
+                            modifier = Modifier.focusRequester(
+                                appFocusRequesters.getValue(app.packageName),
+                            ),
                         )
                     }
                 }
@@ -183,24 +217,41 @@ fun AllAppsScreen(
             app = app,
             isFavorite = app.packageName in favoritePackageNames,
             onOpen = {
-                contextApp = null
+                closeDialogAndRestore()
                 onAppClick(app)
             },
             onToggleFavorite = {
-                contextApp = null
+                closeDialogAndRestore()
                 onToggleFavorite(app)
             },
             onHide = {
-                contextApp = null
+                closeDialogAndRestore()
                 onHideApp(app)
             },
             onAppInfo = {
-                contextApp = null
+                closeDialogAndRestore()
                 onOpenAppInfo(app)
             },
-            onDismiss = { contextApp = null },
+            onDismiss = { closeDialogAndRestore() },
         )
     }
+}
+
+private fun requestAllAppsFocus(
+    apps: List<InstalledApp>,
+    focusTarget: String?,
+    appFocusRequesters: Map<String, FocusRequester>,
+    hiddenAppCount: Int,
+    hiddenAppsFocusRequester: FocusRequester,
+) {
+    val requester = when {
+        focusTarget == AllAppsFocusKey.HIDDEN_APPS && hiddenAppCount > 0 -> hiddenAppsFocusRequester
+        focusTarget != null -> appFocusRequesters[focusTarget]
+        else -> null
+    } ?: apps.firstOrNull()?.let { appFocusRequesters[it.packageName] }
+        ?: if (hiddenAppCount > 0) hiddenAppsFocusRequester else null
+
+    requester?.let { runCatching { it.requestFocus() } }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -210,6 +261,7 @@ private fun AllAppsCard(
     isFavorite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -226,7 +278,10 @@ private fun AllAppsCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
             .focusable()
             .combinedClickable(
                 onClick = onClick,
@@ -347,17 +402,22 @@ private fun AppContextDialog(
 private fun HeaderAction(
     text: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
 
     Text(
         text = text,
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(SeyirRadius.Pill))
             .background(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused?.invoke()
+            }
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
