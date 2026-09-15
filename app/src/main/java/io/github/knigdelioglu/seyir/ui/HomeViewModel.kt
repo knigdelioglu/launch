@@ -9,6 +9,8 @@ import io.github.knigdelioglu.seyir.data.InstalledAppRepository
 import io.github.knigdelioglu.seyir.data.LauncherPreferences
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesRepository
 import io.github.knigdelioglu.seyir.data.ThemeMode
+import io.github.knigdelioglu.seyir.data.TodayMatch
+import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 
 
 data class HomeUiState(
@@ -28,6 +32,10 @@ data class HomeUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
+    val sportsApiConfigured: Boolean = false,
+    val todayMatches: List<TodayMatch> = emptyList(),
+    val matchesLoading: Boolean = false,
+    val matchesError: String? = null,
     val errorMessage: String? = null,
     val transientMessage: String? = null,
 )
@@ -35,13 +43,17 @@ data class HomeUiState(
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = InstalledAppRepository(application.applicationContext)
     private val preferencesRepository = LauncherPreferencesRepository(application.applicationContext)
+    private val matchRepository = TodayMatchRepository()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var refreshJob: Job? = null
+    private var matchesJob: Job? = null
     private var discoveredApps: List<InstalledApp> = emptyList()
     private var latestPreferences = LauncherPreferences()
+    private var lastMatchRefreshMillis = 0L
+    private var lastMatchRefreshDate: LocalDate? = null
 
     init {
         observePreferences()
@@ -81,6 +93,63 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Uygulamalar yüklenemedi.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshTodayMatches(force: Boolean = false) {
+        val apiKey = latestPreferences.apiFootballKey.trim()
+        if (apiKey.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    sportsApiConfigured = false,
+                    todayMatches = emptyList(),
+                    matchesLoading = false,
+                    matchesError = null,
+                )
+            }
+            return
+        }
+        if (matchesJob?.isActive == true) return
+
+        val zoneId = ZoneId.systemDefault()
+        val today = LocalDate.now(zoneId)
+        val now = System.currentTimeMillis()
+        val cacheFresh = lastMatchRefreshDate == today &&
+            now - lastMatchRefreshMillis < MATCH_CACHE_MS
+        if (!force && cacheFresh) return
+
+        matchesJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    sportsApiConfigured = true,
+                    matchesLoading = it.todayMatches.isEmpty(),
+                    matchesError = null,
+                )
+            }
+
+            try {
+                val matches = matchRepository.loadTodayMatches(
+                    apiKey = apiKey,
+                    zoneId = zoneId,
+                    date = today,
+                )
+                lastMatchRefreshMillis = System.currentTimeMillis()
+                lastMatchRefreshDate = today
+                _uiState.update {
+                    it.copy(
+                        todayMatches = matches,
+                        matchesLoading = false,
+                        matchesError = null,
+                    )
+                }
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        matchesLoading = false,
+                        matchesError = error.message ?: "Bugünün maçları alınamadı.",
                     )
                 }
             }
@@ -161,6 +230,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setApiFootballKey(apiKey: String) {
+        viewModelScope.launch {
+            preferencesRepository.setApiFootballKey(apiKey)
+            lastMatchRefreshMillis = 0L
+            lastMatchRefreshDate = null
+            showMessage(
+                if (apiKey.isBlank()) {
+                    "Bugün ne var devre dışı bırakıldı."
+                } else {
+                    "API-Football anahtarı kaydedildi."
+                },
+            )
+        }
+    }
+
     fun dismissTransientMessage() {
         _uiState.update { it.copy(transientMessage = null) }
     }
@@ -172,6 +256,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun observePreferences() {
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
+                val apiKeyChanged = preferences.apiFootballKey != latestPreferences.apiFootballKey
                 latestPreferences = preferences
                 _uiState.update { current ->
                     renderPreferences(
@@ -179,6 +264,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         preferences = preferences,
                         isLoading = current.isLoading,
                     )
+                }
+
+                if (apiKeyChanged || preferences.apiFootballKey.isNotBlank()) {
+                    refreshTodayMatches(force = apiKeyChanged)
                 }
             }
         }
@@ -213,11 +302,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             themeMode = preferences.themeMode,
             accentMode = preferences.accentMode,
             reducedMotion = preferences.reducedMotion,
+            sportsApiConfigured = preferences.apiFootballKey.isNotBlank(),
             errorMessage = null,
         )
     }
 
     private companion object {
         const val DEFAULT_FAVORITE_COUNT = 7
+        const val MATCH_CACHE_MS = 30L * 60L * 1_000L
     }
 }
