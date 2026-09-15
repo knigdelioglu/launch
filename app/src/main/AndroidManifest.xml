@@ -32,10 +32,19 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape">
+
+            <!-- Makes Seyir selectable as the system HOME launcher. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Also keeps Seyir launchable from an existing Android TV launcher
+                 before the user chooses it as the default HOME app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
