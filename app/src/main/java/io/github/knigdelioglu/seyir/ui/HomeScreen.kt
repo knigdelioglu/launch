@@ -36,11 +36,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
@@ -281,7 +284,7 @@ private fun TopBar(
                 text = "SEYİR",
                 fontSize = SeyirType.Brand,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 2.dp.value.sp,
+                letterSpacing = 2.sp,
                 color = SeyirColors.TextPrimary.copy(alpha = 0.92f),
             )
             Spacer(modifier = Modifier.height(3.dp))
@@ -515,7 +518,7 @@ private fun FavoriteContextDialog(
         runCatching { firstActionFocusRequester.requestFocus() }
     }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .width(420.dp)
@@ -534,7 +537,7 @@ private fun FavoriteContextDialog(
                     text = app.label,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    fontSize = 20.dp.value.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = SeyirColors.TextPrimary,
                 )
@@ -587,7 +590,7 @@ private fun FavoriteAction(
             .fillMaxWidth()
             .clip(RoundedCornerShape(SeyirRadius.Action))
             .background(
-                if (focused) SeyirColors.SurfaceFocused else androidx.compose.ui.graphics.Color.Transparent,
+                if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
             )
             .onFocusChanged { focused = it.isFocused }
             .focusable()
