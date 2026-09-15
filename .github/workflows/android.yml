@@ -24,10 +24,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android 37 platform
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
-
       - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v6
         with:
