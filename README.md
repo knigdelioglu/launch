@@ -13,6 +13,7 @@ Amaç, Google TV'nin işlevselliğini Apple TV'nin görsel sakinliğiyle birleş
 - Hızlı açılış, düşük RAM ve düşük CPU kullanımı
 - Favori uygulamalar, tüm uygulamalar ve son kullanılanlar
 - Uygulama gizleme ve sıralama
+- İsteğe bağlı **Bugün ne var** satırıyla günün öne çıkan futbol maçlarını göstermek
 - Minimal ve Cinematic görünüm modları
 - Yerel ayarlar; zorunlu hesap ve bulut bağımlılığı olmaması
 - Reklam, sponsorlu öneri ve takip mekanizması içermemesi
@@ -29,23 +30,42 @@ Amaç, Google TV'nin işlevselliğini Apple TV'nin görsel sakinliğiyle birleş
 6. **Görsel sakinlik:** Büyük boşluklar, güçlü tipografi, sınırlı animasyon ve kontrollü efektler.
 7. **Gizlilik:** Telemetri, reklam kimliği ve davranış takibi yoktur.
 
-## Planlanan Ana Ekran
+## Ana Ekran
+
+Seyir'in ana ekranı uygulama odaklı kalır. Ağ tabanlı özellikler varsayılan olarak kapalıdır ve temel launcher kullanımını etkilemez.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  21:42                                      Wi‑Fi ●   ⚙      │
+│  SEYİR                                      ⚙        21:42   │
 │                                                              │
 │                    İyi akşamlar                              │
 │                                                              │
-│       ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐            │
-│       │ NUVIO  │ │YOUTUBE │ │ IPTV   │ │ KODI   │            │
-│       └────────┘ └────────┘ └────────┘ └────────┘            │
+│  Favoriler                                                   │
+│  Nuvio   YouTube   IPTV   Kodi   Netflix   Tüm Uygulamalar   │
 │                                                              │
-│       Netflix    Spotify    Dosyalar    Tüm Uygulamalar       │
+│  Bugün ne var                                      Yenile    │
+│  Süper Lig     Şampiyonlar Ligi     Premier League           │
+│  20:00 ...     CANLI 1–0             22:00 ...               │
 │                                                              │
-│  AirPlay ● Salon TV hazır                                    │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+## Bugün ne var
+
+Bu özellik **opsiyoneldir**. Etkinleştirilmediğinde Seyir internete maç verisi için istek göndermez ve ana ekranda ilgili satır görünmez.
+
+Veri kaynağı olarak [API-Football](https://www.api-football.com/) kullanılır.
+
+- Kullanıcı kendi API-Football anahtarını **Ayarlar → Bugün ne var** ekranından girer.
+- Anahtar kaynak koda, GitHub reposuna veya APK içine sabitlenmez.
+- Android yedekleme kapalıdır; launcher tercihleri ve API anahtarı uygulamanın cihazdaki özel verisinde kalır.
+- Fikstür cihazın saat dilimiyle istenir.
+- Sonuçlar 30 dakika bellek önbelleğinde tutulur; arka planda sürekli polling yapılmaz.
+- Home ekranında en fazla 12 maç gösterilir.
+- Öncelik sırası: Süper Lig / Türkiye Kupası / UEFA kupaları → diğer Türkiye ligleri → büyük Avrupa ligleri → diğer karşılaşmalar.
+- Maç başlamadıysa saat, canlıysa dakika + skor, bittiyse maç sonu skoru gösterilir.
+
+API-Football ücretsiz planı kişisel kullanım ve geliştirme için yeterli bir başlangıç noktasıdır; kota ve kullanım koşulları sağlayıcı tarafından değiştirilebilir.
 
 ## Teknoloji Yığını
 
@@ -55,6 +75,7 @@ Amaç, Google TV'nin işlevselliğini Apple TV'nin görsel sakinliğiyle birleş
 - Android `PackageManager`
 - Jetpack DataStore
 - Kotlin Coroutines / Flow
+- `HttpURLConnection` + Android JSON (opsiyonel maç verisi)
 - MediaSession entegrasyonu (gerektiğinde)
 - AirPlay fazında JNI + native C/C++ katmanı
 
@@ -75,31 +96,31 @@ Seyir
 │   ├── datastore
 │   ├── launcher
 │   └── design-system
+├── sports                 # opsiyonel günlük maç verisi
 └── airplay                # sonraki faz
     ├── service
     ├── jni
     └── native
 ```
 
-Kesin modül yapısı ilk Android prototipi sırasında ihtiyaçlara göre sadeleştirilebilir.
+Kesin modül yapısı geliştirme sırasında ihtiyaçlara göre sade tutulur.
 
-## MVP
+## Güncel Çekirdek Özellikler
 
-İlk günlük kullanılabilir sürüm şu kapsamla sınırlandırılır:
-
-- Varsayılan Android `HOME` activity
-- Kurulu TV uygulamalarını listeleme
-- Uygulama açma
-- Favoriler
-- Favori sıralama
-- Uygulama gizleme
+- Android `HOME` activity
+- Kurulu TV uygulamalarını listeleme ve açma
+- Favoriler ve D-pad ile favori sıralama
+- Uygulama gizleme / geri getirme
 - Tüm Uygulamalar ekranı
-- Ayarlar
-- Kumanda/D-pad focus sistemi
-- Minimal koyu tema
+- Focus restore ve off-screen scroll-before-focus
+- Dark / Black tema
+- Nötr / Mavi / Zümrüt accent
+- Reduced Motion
 - Kalıcı yerel ayarlar
+- Opsiyonel **Bugün ne var** futbol fikstürü
+- CI üzerinden debug APK artifact üretimi
 
-AirPlay, içerik sağlayıcı entegrasyonları ve Ambient Mode MVP sonrasındadır.
+AirPlay ve Ambient Mode sonraki fazlardadır.
 
 ## Performans Hedefleri
 
@@ -110,7 +131,7 @@ AirPlay, içerik sağlayıcı entegrasyonları ve Ambient Mode MVP sonrasındad�
 | UI | `60 FPS` |
 | Cold launch | `< 1 sn` hedef |
 | Focus tepkisi | `< 50 ms` hedef |
-| Temel kullanım için internet | Gerekmez |
+| Temel launcher kullanımı için internet | Gerekmez |
 
 Bu değerler geliştirme sırasında gerçek donanım üzerinde ölçülerek doğrulanacaktır.
 
@@ -133,8 +154,9 @@ Seyir'in varsayılan politikası:
 - Advertising ID yok
 - zorunlu hesap yok
 - zorunlu bulut servisi yok
+- Android app backup kapalı
 
-Ağ erişimi yalnızca açıkça ağ gerektiren özellikler için kullanılacaktır.
+Ağ erişimi yalnızca kullanıcının açıkça etkinleştirdiği ağ gerektiren özellikler için kullanılır. `Bugün ne var` kapalıysa maç verisi isteği yapılmaz.
 
 ## Dokümantasyon
 
@@ -143,9 +165,9 @@ Ağ erişimi yalnızca açıkça ağ gerektiren özellikler için kullanılacakt
 
 ## Durum
 
-**Aşama:** Planlama / bootstrap
+**Aşama:** M3 / M4 geçişi — günlük kullanılabilir launcher çekirdeği ve kişiselleştirme.
 
-İlk hedef: çalışan bir Android TV `HOME` prototipi ve güvenilir D-pad focus davranışı.
+Kod tarafındaki sıradaki büyük hedefler onboarding, gerçek TV box doğrulaması ve ardından AirPlay teknik spike'ıdır.
 
 ## Lisans
 
