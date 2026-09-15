@@ -1,0 +1,92 @@
+# Gradle
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Android local configuration
+local.properties
+
+# Android generated files
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APK / App Bundle outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Native build artifacts
+*.so
+*.o
+*.obj
+*.a
+*.dylib
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+*.pem
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# Google / service credentials
+**/google-services.json
+**/service-account*.json
+
+# Kotlin / tooling
+.kotlin/
+.kotlinc/
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# VS Code local state
+.vscode/
+
+# Test / coverage
+coverage/
+reports/
+
+# Fastlane generated files
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Misc local artifacts
+artifacts/
+dist/
