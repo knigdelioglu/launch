@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import io.github.knigdelioglu.seyir.data.AccentMode
+import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
 import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
@@ -45,6 +47,12 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     visibleAppCount: Int,
     hiddenAppCount: Int,
+    themeMode: ThemeMode,
+    accentMode: AccentMode,
+    reducedMotion: Boolean,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    onAccentModeChanged: (AccentMode) -> Unit,
+    onReducedMotionChanged: (Boolean) -> Unit,
     onOpenApps: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -87,19 +95,14 @@ fun SettingsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Seyir sade kalır; yalnız gerekli kontroller burada yer alır.",
+                text = "Görünümü ve launcher davranışını kumandayla yönetin.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
 
             Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
 
-            Text(
-                text = "Yönetim",
-                fontSize = SeyirType.SectionTitle,
-                fontWeight = FontWeight.SemiBold,
-                color = SeyirColors.TextPrimary.copy(alpha = 0.9f),
-            )
+            SettingsSectionTitle("Yönetim")
             Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
             SettingsActionCard(
@@ -111,32 +114,78 @@ fun SettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+            SettingsSectionTitle("Görünüm")
+            Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
             ) {
-                SettingsInfoCard(
-                    title = "Görünüm",
-                    value = "Koyu",
-                    detail = "Tema seçenekleri M4'te genişletilecek.",
+                SettingsChoiceCard(
+                    title = "Tema",
+                    value = if (themeMode == ThemeMode.DARK) "Koyu" else "Siyah",
+                    detail = if (themeMode == ThemeMode.DARK) {
+                        "Yumuşak koyu yüzey"
+                    } else {
+                        "Gerçek siyah arka plan"
+                    },
+                    symbol = "◐",
+                    onClick = {
+                        onThemeModeChanged(
+                            if (themeMode == ThemeMode.DARK) ThemeMode.BLACK else ThemeMode.DARK,
+                        )
+                    },
                     modifier = Modifier.weight(1f),
                 )
-                SettingsInfoCard(
-                    title = "Seyir",
-                    value = "0.1.0-dev",
-                    detail = "Yerel • reklamsız • telemetry yok",
+                SettingsChoiceCard(
+                    title = "Vurgu",
+                    value = accentMode.label(),
+                    detail = "Focus yüzeyi ve vurgu rengi",
+                    symbol = "●",
+                    onClick = { onAccentModeChanged(accentMode.next()) },
+                    modifier = Modifier.weight(1f),
+                )
+                SettingsChoiceCard(
+                    title = "Hareket",
+                    value = if (reducedMotion) "Azaltılmış" else "Normal",
+                    detail = if (reducedMotion) {
+                        "Focus büyütmesi kapalı"
+                    } else {
+                        "160 ms focus geçişi"
+                    },
+                    symbol = "↔",
+                    onClick = { onReducedMotionChanged(!reducedMotion) },
                     modifier = Modifier.weight(1f),
                 )
             }
 
+            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+
+            SettingsInfoCard(
+                title = "Seyir",
+                value = "0.1.0-dev",
+                detail = "Yerel • reklamsız • telemetry yok",
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "BACK ile ana ekrana dön",
+                text = "Değişiklikler anında uygulanır ve cihazda saklanır.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )
         }
     }
+}
+
+@Composable
+private fun SettingsSectionTitle(text: String) {
+    Text(
+        text = text,
+        fontSize = SeyirType.SectionTitle,
+        fontWeight = FontWeight.SemiBold,
+        color = SeyirColors.TextPrimary.copy(alpha = 0.9f),
+    )
 }
 
 @Composable
@@ -171,7 +220,10 @@ private fun SettingsActionCard(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(SeyirMotion.FocusDurationMs),
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
         label = "settings-action-scale",
     )
 
@@ -196,7 +248,7 @@ private fun SettingsActionCard(
             text = symbol,
             fontSize = 32.sp,
             fontWeight = FontWeight.Light,
-            color = SeyirColors.TextPrimary,
+            color = if (focused) SeyirColors.Accent else SeyirColors.TextPrimary,
         )
         Spacer(modifier = Modifier.width(18.dp))
         Column {
@@ -213,6 +265,70 @@ private fun SettingsActionCard(
                 color = SeyirColors.TextSecondary,
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsChoiceCard(
+    title: String,
+    value: String,
+    detail: String,
+    symbol: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
+        label = "settings-choice-scale",
+    )
+
+    Column(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(SeyirRadius.Card))
+            .background(
+                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = symbol,
+                fontSize = 18.sp,
+                color = if (focused) SeyirColors.Accent else SeyirColors.TextSecondary,
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = title,
+                fontSize = SeyirType.Meta,
+                fontWeight = FontWeight.Medium,
+                color = SeyirColors.TextTertiary,
+            )
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            text = value,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = SeyirColors.TextPrimary,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = detail,
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextSecondary,
+        )
     }
 }
 
@@ -249,4 +365,16 @@ private fun SettingsInfoCard(
             color = SeyirColors.TextSecondary,
         )
     }
+}
+
+private fun AccentMode.label(): String = when (this) {
+    AccentMode.NEUTRAL -> "Nötr"
+    AccentMode.BLUE -> "Mavi"
+    AccentMode.EMERALD -> "Zümrüt"
+}
+
+private fun AccentMode.next(): AccentMode = when (this) {
+    AccentMode.NEUTRAL -> AccentMode.BLUE
+    AccentMode.BLUE -> AccentMode.EMERALD
+    AccentMode.EMERALD -> AccentMode.NEUTRAL
 }
