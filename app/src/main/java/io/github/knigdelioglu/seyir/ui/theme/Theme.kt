@@ -12,8 +12,6 @@ private val SeyirColorScheme = darkColorScheme(
     onBackground = SeyirColors.TextPrimary,
     surface = SeyirColors.Surface,
     onSurface = SeyirColors.TextPrimary,
-    surfaceVariant = SeyirColors.SurfaceElevated,
-    onSurfaceVariant = SeyirColors.TextSecondary,
 )
 
 @Composable
