@@ -75,6 +75,8 @@ class MainActivity : ComponentActivity() {
                     else -> HomeScreen(
                         uiState = uiState,
                         onAppClick = viewModel::openApp,
+                        onMoveFavorite = viewModel::moveFavorite,
+                        onToggleFavorite = viewModel::toggleFavorite,
                         onOpenAllApps = { screen = SCREEN_ALL_APPS },
                         onRetry = viewModel::refresh,
                         onDismissMessage = viewModel::dismissTransientMessage,
