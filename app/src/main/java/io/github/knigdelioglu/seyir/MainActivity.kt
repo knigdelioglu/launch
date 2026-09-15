@@ -22,6 +22,7 @@ import io.github.knigdelioglu.seyir.ui.AllAppsScreen
 import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
 import io.github.knigdelioglu.seyir.ui.HomeScreen
 import io.github.knigdelioglu.seyir.ui.HomeViewModel
+import io.github.knigdelioglu.seyir.ui.SettingsScreen
 import io.github.knigdelioglu.seyir.ui.theme.SeyirTheme
 
 class MainActivity : ComponentActivity() {
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
             SeyirTheme {
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
                 var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
+                var homeFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
                 BackHandler(enabled = screen != SCREEN_HOME) {
                     screen = when (screen) {
@@ -73,12 +75,22 @@ class MainActivity : ComponentActivity() {
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
 
+                    SCREEN_SETTINGS -> SettingsScreen(
+                        visibleAppCount = uiState.apps.size,
+                        hiddenAppCount = uiState.hiddenApps.size,
+                        onOpenApps = { screen = SCREEN_ALL_APPS },
+                        onBack = { screen = SCREEN_HOME },
+                    )
+
                     else -> HomeScreen(
                         uiState = uiState,
+                        focusTarget = homeFocusTarget,
+                        onFocusTargetChanged = { homeFocusTarget = it },
                         onAppClick = viewModel::openApp,
                         onMoveFavorite = viewModel::moveFavorite,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onOpenAllApps = { screen = SCREEN_ALL_APPS },
+                        onOpenSettings = { screen = SCREEN_SETTINGS },
                         onRetry = viewModel::refresh,
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
@@ -139,5 +151,6 @@ class MainActivity : ComponentActivity() {
         const val SCREEN_HOME = "home"
         const val SCREEN_ALL_APPS = "all_apps"
         const val SCREEN_HIDDEN_APPS = "hidden_apps"
+        const val SCREEN_SETTINGS = "settings"
     }
 }
