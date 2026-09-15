@@ -23,6 +23,7 @@ import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
 import io.github.knigdelioglu.seyir.ui.HomeScreen
 import io.github.knigdelioglu.seyir.ui.HomeViewModel
 import io.github.knigdelioglu.seyir.ui.SettingsScreen
+import io.github.knigdelioglu.seyir.ui.SportsSettingsScreen
 import io.github.knigdelioglu.seyir.ui.theme.SeyirTheme
 
 class MainActivity : ComponentActivity() {
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
                     screen = when (screen) {
                         SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
                         SCREEN_ALL_APPS -> allAppsReturnScreen
+                        SCREEN_SPORTS_SETTINGS -> SCREEN_SETTINGS
                         else -> SCREEN_HOME
                     }
                 }
@@ -91,6 +93,7 @@ class MainActivity : ComponentActivity() {
                         themeMode = uiState.themeMode,
                         accentMode = uiState.accentMode,
                         reducedMotion = uiState.reducedMotion,
+                        sportsApiConfigured = uiState.sportsApiConfigured,
                         onThemeModeChanged = viewModel::setThemeMode,
                         onAccentModeChanged = viewModel::setAccentMode,
                         onReducedMotionChanged = viewModel::setReducedMotion,
@@ -98,7 +101,15 @@ class MainActivity : ComponentActivity() {
                             allAppsReturnScreen = SCREEN_SETTINGS
                             screen = SCREEN_ALL_APPS
                         },
+                        onOpenSports = { screen = SCREEN_SPORTS_SETTINGS },
                         onBack = { screen = SCREEN_HOME },
+                    )
+
+                    SCREEN_SPORTS_SETTINGS -> SportsSettingsScreen(
+                        configured = uiState.sportsApiConfigured,
+                        onSaveKey = viewModel::setApiFootballKey,
+                        onClearKey = { viewModel.setApiFootballKey("") },
+                        onBack = { screen = SCREEN_SETTINGS },
                     )
 
                     else -> HomeScreen(
@@ -114,6 +125,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onOpenSettings = { screen = SCREEN_SETTINGS },
                         onRetry = viewModel::refresh,
+                        onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
                 }
@@ -130,6 +142,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         enterImmersiveMode()
         viewModel.refresh()
+        viewModel.refreshTodayMatches()
     }
 
     override fun onStop() {
@@ -174,5 +187,6 @@ class MainActivity : ComponentActivity() {
         const val SCREEN_ALL_APPS = "all_apps"
         const val SCREEN_HIDDEN_APPS = "hidden_apps"
         const val SCREEN_SETTINGS = "settings"
+        const val SCREEN_SPORTS_SETTINGS = "sports_settings"
     }
 }
