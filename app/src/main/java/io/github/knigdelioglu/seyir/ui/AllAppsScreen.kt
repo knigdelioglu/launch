@@ -57,6 +57,7 @@ fun AllAppsScreen(
     onAppClick: (InstalledApp) -> Unit,
     onToggleFavorite: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
     onOpenHiddenApps: () -> Unit,
     onBack: () -> Unit,
     onDismissMessage: () -> Unit,
@@ -183,6 +184,10 @@ fun AllAppsScreen(
                 contextApp = null
                 onHideApp(app)
             },
+            onAppInfo = {
+                contextApp = null
+                onOpenAppInfo(app)
+            },
             onDismiss = { contextApp = null },
         )
     }
@@ -265,6 +270,7 @@ private fun AppContextDialog(
     onOpen: () -> Unit,
     onToggleFavorite: () -> Unit,
     onHide: () -> Unit,
+    onAppInfo: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val firstActionFocusRequester = remember { FocusRequester() }
@@ -317,6 +323,11 @@ private fun AppContextDialog(
             ContextAction(
                 text = "Gizle",
                 onClick = onHide,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ContextAction(
+                text = "Uygulama bilgisi",
+                onClick = onAppInfo,
             )
         }
     }
