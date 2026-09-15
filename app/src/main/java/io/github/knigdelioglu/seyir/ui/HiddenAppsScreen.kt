@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,12 +57,28 @@ fun HiddenAppsScreen(
     onBack: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    val firstFocusRequester = remember { FocusRequester() }
+    val appFocusRequesters = remember(apps.map { it.packageName }) {
+        apps.associate { it.packageName to FocusRequester() }
+    }
+    val backFocusRequester = remember { FocusRequester() }
+    val gridState = rememberLazyGridState()
+    var focusTarget by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(apps) {
-        if (apps.isNotEmpty()) {
-            delay(120)
-            runCatching { firstFocusRequester.requestFocus() }
+    LaunchedEffect(apps, focusTarget) {
+        delay(100)
+
+        if (apps.isEmpty()) {
+            runCatching { backFocusRequester.requestFocus() }
+            return@LaunchedEffect
+        }
+
+        val targetIndex = apps.indexOfFirst { it.packageName == focusTarget }
+            .takeIf { it >= 0 } ?: 0
+        runCatching { gridState.scrollToItem(targetIndex) }
+        delay(16)
+        val packageName = apps[targetIndex].packageName
+        appFocusRequesters[packageName]?.let { requester ->
+            runCatching { requester.requestFocus() }
         }
     }
 
@@ -93,7 +110,10 @@ fun HiddenAppsScreen(
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
-            BackAction(onClick = onBack)
+            BackAction(
+                onClick = onBack,
+                modifier = Modifier.focusRequester(backFocusRequester),
+            )
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
             Text(
@@ -122,6 +142,7 @@ fun HiddenAppsScreen(
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
+                    state = gridState,
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
                     verticalArrangement = Arrangement.spacedBy(SeyirSpacing.Section),
@@ -132,12 +153,16 @@ fun HiddenAppsScreen(
                     ) { index, app ->
                         HiddenAppCard(
                             app = app,
-                            onRestore = { onRestore(app) },
-                            modifier = if (index == 0) {
-                                Modifier.focusRequester(firstFocusRequester)
-                            } else {
-                                Modifier
+                            onFocused = { focusTarget = app.packageName },
+                            onRestore = {
+                                val fallback = apps.getOrNull(index + 1)
+                                    ?: apps.getOrNull(index - 1)
+                                focusTarget = fallback?.packageName
+                                onRestore(app)
                             },
+                            modifier = Modifier.focusRequester(
+                                appFocusRequesters.getValue(app.packageName),
+                            ),
                         )
                     }
                 }
@@ -164,12 +189,15 @@ fun HiddenAppsScreen(
 }
 
 @Composable
-private fun BackAction(onClick: () -> Unit) {
+private fun BackAction(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var focused by remember { mutableStateOf(false) }
 
     Text(
         text = "‹  Tüm Uygulamalar",
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(SeyirRadius.Pill))
             .background(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
@@ -187,13 +215,17 @@ private fun BackAction(onClick: () -> Unit) {
 @Composable
 private fun HiddenAppCard(
     app: InstalledApp,
+    onFocused: () -> Unit,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(SeyirMotion.FocusDurationMs),
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
         label = "hidden-app-card-scale",
     )
 
@@ -204,7 +236,10 @@ private fun HiddenAppCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            }
             .focusable()
             .clickable(onClick = onRestore),
         horizontalAlignment = Alignment.Start,
