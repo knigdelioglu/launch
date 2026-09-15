@@ -53,11 +53,13 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     uiState: HomeUiState,
     onAppClick: (InstalledApp) -> Unit,
+    onOpenAllApps: () -> Unit,
     onRetry: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
     val firstAppFocusRequester = remember { FocusRequester() }
     val clock = rememberClock()
+    val homeApps = uiState.apps.take(HOME_APP_LIMIT)
 
     LaunchedEffect(uiState.apps) {
         if (uiState.apps.isNotEmpty()) {
@@ -124,7 +126,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
                         itemsIndexed(
-                            items = uiState.apps,
+                            items = homeApps,
                             key = { _, app -> app.packageName },
                         ) { index, app ->
                             AppCard(
@@ -135,6 +137,14 @@ fun HomeScreen(
                                 } else {
                                     Modifier
                                 },
+                            )
+                        }
+
+                        item(key = "all-apps") {
+                            ActionCard(
+                                label = "Tüm Uygulamalar",
+                                symbol = "•••",
+                                onClick = onOpenAllApps,
                             )
                         }
                     }
@@ -255,6 +265,61 @@ private fun AppCard(
 }
 
 @Composable
+private fun ActionCard(
+    label: String,
+    symbol: String,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.06f else 1f,
+        animationSpec = tween(durationMillis = 160),
+        label = "action-card-scale",
+    )
+
+    Column(
+        modifier = Modifier
+            .width(168.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 168.dp, height = 102.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    if (focused) Color.White.copy(alpha = 0.16f)
+                    else Color.White.copy(alpha = 0.05f),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = symbol,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 4.sp,
+                color = Color.White.copy(alpha = if (focused) 1f else 0.68f),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = label,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = 15.sp,
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+            color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+        )
+    }
+}
+
+@Composable
 private fun LoadingState() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(
@@ -313,3 +378,5 @@ private fun greetingFor(time: LocalTime): String = when (time.hour) {
     in 12..17 -> "İyi günler"
     else -> "İyi akşamlar"
 }
+
+private const val HOME_APP_LIMIT = 7
