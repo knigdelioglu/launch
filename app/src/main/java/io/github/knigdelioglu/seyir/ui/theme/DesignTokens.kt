@@ -1,5 +1,6 @@
 package io.github.knigdelioglu.seyir.ui.theme
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +47,7 @@ object SeyirSize {
 object SeyirMotion {
     const val FocusScale = 1.06f
     const val FocusDurationMs = 160
+    val FocusEasing = FastOutSlowInEasing
 }
 
 object SeyirType {
