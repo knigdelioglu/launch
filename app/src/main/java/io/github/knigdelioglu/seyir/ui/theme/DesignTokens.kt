@@ -1,22 +1,83 @@
 package io.github.knigdelioglu.seyir.ui.theme
 
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+data class SeyirPalette(
+    val backgroundTop: Color,
+    val backgroundMiddle: Color,
+    val backgroundBottom: Color,
+    val surface: Color,
+    val surfaceElevated: Color,
+    val surfaceSoft: Color,
+    val surfaceFocused: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textTertiary: Color,
+    val hairline: Color,
+    val accent: Color,
+)
+
+data class SeyirMotionTokens(
+    val focusScale: Float,
+    val focusDurationMs: Int,
+    val focusEasing: Easing,
+)
+
+internal val DefaultSeyirPalette = SeyirPalette(
+    backgroundTop = Color(0xFF111116),
+    backgroundMiddle = Color(0xFF09090C),
+    backgroundBottom = Color(0xFF050507),
+    surface = Color(0xFF15151B),
+    surfaceElevated = Color(0xFF1B1B22),
+    surfaceSoft = Color.White.copy(alpha = 0.055f),
+    surfaceFocused = Color.White.copy(alpha = 0.145f),
+    textPrimary = Color.White,
+    textSecondary = Color.White.copy(alpha = 0.68f),
+    textTertiary = Color.White.copy(alpha = 0.44f),
+    hairline = Color.White.copy(alpha = 0.09f),
+    accent = Color.White,
+)
+
+internal val DefaultSeyirMotion = SeyirMotionTokens(
+    focusScale = 1.06f,
+    focusDurationMs = 160,
+    focusEasing = FastOutSlowInEasing,
+)
+
+internal val LocalSeyirPalette = staticCompositionLocalOf { DefaultSeyirPalette }
+internal val LocalSeyirMotion = staticCompositionLocalOf { DefaultSeyirMotion }
+
 object SeyirColors {
-    val BackgroundTop = Color(0xFF111116)
-    val BackgroundMiddle = Color(0xFF09090C)
-    val BackgroundBottom = Color(0xFF050507)
-    val Surface = Color(0xFF15151B)
-    val SurfaceElevated = Color(0xFF1B1B22)
-    val SurfaceSoft = Color.White.copy(alpha = 0.055f)
-    val SurfaceFocused = Color.White.copy(alpha = 0.145f)
-    val TextPrimary = Color.White
-    val TextSecondary = Color.White.copy(alpha = 0.68f)
-    val TextTertiary = Color.White.copy(alpha = 0.44f)
-    val Hairline = Color.White.copy(alpha = 0.09f)
+    val BackgroundTop: Color
+        @Composable get() = LocalSeyirPalette.current.backgroundTop
+    val BackgroundMiddle: Color
+        @Composable get() = LocalSeyirPalette.current.backgroundMiddle
+    val BackgroundBottom: Color
+        @Composable get() = LocalSeyirPalette.current.backgroundBottom
+    val Surface: Color
+        @Composable get() = LocalSeyirPalette.current.surface
+    val SurfaceElevated: Color
+        @Composable get() = LocalSeyirPalette.current.surfaceElevated
+    val SurfaceSoft: Color
+        @Composable get() = LocalSeyirPalette.current.surfaceSoft
+    val SurfaceFocused: Color
+        @Composable get() = LocalSeyirPalette.current.surfaceFocused
+    val TextPrimary: Color
+        @Composable get() = LocalSeyirPalette.current.textPrimary
+    val TextSecondary: Color
+        @Composable get() = LocalSeyirPalette.current.textSecondary
+    val TextTertiary: Color
+        @Composable get() = LocalSeyirPalette.current.textTertiary
+    val Hairline: Color
+        @Composable get() = LocalSeyirPalette.current.hairline
+    val Accent: Color
+        @Composable get() = LocalSeyirPalette.current.accent
 }
 
 object SeyirSpacing {
@@ -45,9 +106,12 @@ object SeyirSize {
 }
 
 object SeyirMotion {
-    const val FocusScale = 1.06f
-    const val FocusDurationMs = 160
-    val FocusEasing = FastOutSlowInEasing
+    val FocusScale: Float
+        @Composable get() = LocalSeyirMotion.current.focusScale
+    val FocusDurationMs: Int
+        @Composable get() = LocalSeyirMotion.current.focusDurationMs
+    val FocusEasing: Easing
+        @Composable get() = LocalSeyirMotion.current.focusEasing
 }
 
 object SeyirType {
