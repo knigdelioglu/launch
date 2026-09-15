@@ -99,7 +99,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 ### UX
 
 - [~] context menu focus trap kodlandı; gerçek kumanda testi bekliyor
-- [ ] menü kapanınca focus kaynak karta dönüyor
+- [~] Tüm Uygulamalar context menu kapanınca kaynak karta explicit focus restore var; favori menüsü ve gerçek kumanda testi bekliyor
 - [~] taşıma akışı kumandaya özel menü olarak uygulandı; cihaz testi bekliyor
 - [~] gizleme geri alınabilir; yanlış tetikleme/uzun-OK davranışı cihazda doğrulanacak
 
@@ -122,7 +122,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] corner radius tokenları (`SeyirRadius`)
 - [x] focus scale tokenları (`SeyirMotion.FocusScale`)
 - [x] elevation/shadow yaklaşımı (ağır shadow yerine düz surface hiyerarşisi)
-- [~] motion duration/easing tokenları (duration merkezileştirildi; explicit easing tokenı bekliyor)
+- [x] motion duration/easing tokenları (`FocusDurationMs` + `FocusEasing`)
 - [x] Dark palette (`SeyirColors`)
 - [ ] Black palette
 - [ ] accent altyapısı
@@ -136,8 +136,9 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] Ayarlar girişi ve TV uyumlu Ayarlar kabuğu
 - [x] boş state
 - [x] ilk focus davranışı
-- [~] focus restore (favori paket anahtarı / Tüm Uygulamalar / Ayarlar için kodlandı ve CI doğrulandı; gerçek kumanda testi bekliyor)
+- [~] focus restore (Home'da favori/Tüm Uygulamalar/Ayarlar; Tüm Uygulamalar'da son kart/Gizlenenler; kodlandı ve CI doğrulandı, gerçek kumanda testi bekliyor)
 - [x] Home, Tüm Uygulamalar, Gizlenenler ve Ayarlar ortak design tokenlarını kullanıyor
+- [x] Ayarlar → Uygulamaları yönet → BACK dönüşü geldiği Ayarlar ekranına dönüyor
 
 ### Focus kalitesi
 
@@ -146,7 +147,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [ ] focus off-screen kalmıyor
 - [ ] scroll sırasında focus zıplamıyor
 - [ ] hızlı D-pad spam testinden geçiyor
-- [ ] dialog/menu kapanınca doğru focus geri geliyor
+- [~] Tüm Uygulamalar dialog/menu kapanınca kaynak karta explicit dönüş var; favori dialog ve cihaz testi bekliyor
 
 ### Motion
 
