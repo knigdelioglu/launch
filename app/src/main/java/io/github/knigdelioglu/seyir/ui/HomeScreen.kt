@@ -19,13 +19,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -82,20 +85,21 @@ fun HomeScreen(
     }
     val allAppsFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
+    val favoritesListState = rememberLazyListState()
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var restoreRequest by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(homeApps, uiState.apps, focusTarget) {
+    LaunchedEffect(homeApps, uiState.apps, focusTarget, restoreRequest) {
         if (uiState.apps.isEmpty()) return@LaunchedEffect
-        delay(140)
-
-        val requester = when (focusTarget) {
-            HomeFocusKey.ALL_APPS -> allAppsFocusRequester
-            HomeFocusKey.SETTINGS -> settingsFocusRequester
-            else -> favoriteFocusRequesters[focusTarget]
-        } ?: homeApps.firstOrNull()?.let { favoriteFocusRequesters[it.packageName] }
-            ?: allAppsFocusRequester
-
-        runCatching { requester.requestFocus() }
+        delay(if (restoreRequest > 0) 90 else 140)
+        requestHomeFocus(
+            homeApps = homeApps,
+            focusTarget = focusTarget,
+            favoriteFocusRequesters = favoriteFocusRequesters,
+            allAppsFocusRequester = allAppsFocusRequester,
+            settingsFocusRequester = settingsFocusRequester,
+            favoritesListState = favoritesListState,
+        )
     }
 
     LaunchedEffect(uiState.transientMessage) {
@@ -103,6 +107,11 @@ fun HomeScreen(
             delay(2_500)
             onDismissMessage()
         }
+    }
+
+    fun closeDialogAndRestore() {
+        contextApp = null
+        restoreRequest += 1
     }
 
     Box(
@@ -159,6 +168,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
                     LazyRow(
+                        state = favoritesListState,
                         horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
                     ) {
                         itemsIndexed(
@@ -252,19 +262,54 @@ fun HomeScreen(
             canMoveLeft = index > 0,
             canMoveRight = index >= 0 && index < homeApps.lastIndex,
             onMoveLeft = {
-                contextApp = null
+                onFocusTargetChanged(app.packageName)
+                closeDialogAndRestore()
                 onMoveFavorite(app, -1)
             },
             onMoveRight = {
-                contextApp = null
+                onFocusTargetChanged(app.packageName)
+                closeDialogAndRestore()
                 onMoveFavorite(app, 1)
             },
             onRemove = {
-                contextApp = null
+                val fallback = homeApps.getOrNull(index + 1)
+                    ?: homeApps.getOrNull(index - 1)
+                onFocusTargetChanged(fallback?.packageName ?: HomeFocusKey.ALL_APPS)
+                closeDialogAndRestore()
                 onToggleFavorite(app)
             },
-            onDismiss = { contextApp = null },
+            onDismiss = { closeDialogAndRestore() },
         )
+    }
+}
+
+private suspend fun requestHomeFocus(
+    homeApps: List<InstalledApp>,
+    focusTarget: String?,
+    favoriteFocusRequesters: Map<String, FocusRequester>,
+    allAppsFocusRequester: FocusRequester,
+    settingsFocusRequester: FocusRequester,
+    favoritesListState: LazyListState,
+) {
+    if (focusTarget == HomeFocusKey.SETTINGS) {
+        runCatching { settingsFocusRequester.requestFocus() }
+        return
+    }
+
+    if (focusTarget == HomeFocusKey.ALL_APPS || homeApps.isEmpty()) {
+        runCatching { favoritesListState.scrollToItem(homeApps.size) }
+        delay(16)
+        runCatching { allAppsFocusRequester.requestFocus() }
+        return
+    }
+
+    val targetIndex = homeApps.indexOfFirst { it.packageName == focusTarget }
+        .takeIf { it >= 0 } ?: 0
+    runCatching { favoritesListState.scrollToItem(targetIndex) }
+    delay(16)
+    val packageName = homeApps[targetIndex].packageName
+    favoriteFocusRequesters[packageName]?.let { requester ->
+        runCatching { requester.requestFocus() }
     }
 }
 
@@ -342,7 +387,7 @@ private fun TopBarAction(
         Text(
             text = symbol,
             fontSize = SeyirType.CardLabel,
-            color = SeyirColors.TextPrimary,
+            color = if (focused) SeyirColors.Accent else SeyirColors.TextPrimary,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -390,7 +435,10 @@ private fun AppCard(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(SeyirMotion.FocusDurationMs),
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
         label = "app-card-scale",
     )
 
@@ -452,7 +500,10 @@ private fun ActionCard(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(SeyirMotion.FocusDurationMs),
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
         label = "action-card-scale",
     )
 
@@ -486,7 +537,7 @@ private fun ActionCard(
                 text = symbol,
                 fontSize = SeyirType.Hero,
                 fontWeight = FontWeight.Light,
-                color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
+                color = if (focused) SeyirColors.Accent else SeyirColors.TextSecondary,
             )
         }
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
