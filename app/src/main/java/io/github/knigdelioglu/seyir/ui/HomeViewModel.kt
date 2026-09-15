@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.data.InstalledAppRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val apps: List<InstalledApp> = emptyList(),
     val errorMessage: String? = null,
+    val transientMessage: String? = null,
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -24,28 +26,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private var hasLoaded = false
+    private var refreshJob: Job? = null
 
     init {
         refresh()
     }
 
     fun refresh() {
-        if (_uiState.value.isLoading && hasLoaded) return
+        if (refreshJob?.isActive == true) return
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        refreshJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = it.apps.isEmpty(),
+                    errorMessage = null,
+                )
+            }
 
             runCatching { repository.loadLaunchableApps() }
                 .onSuccess { apps ->
-                    hasLoaded = true
-                    _uiState.value = HomeUiState(
-                        isLoading = false,
-                        apps = apps,
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            apps = apps,
+                            errorMessage = null,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    hasLoaded = true
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -57,6 +65,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openApp(app: InstalledApp) {
-        repository.launch(app.packageName)
+        val launched = repository.launch(app.packageName)
+        if (!launched) {
+            _uiState.update {
+                it.copy(transientMessage = "${app.label} açılamadı.")
+            }
+        }
+    }
+
+    fun dismissTransientMessage() {
+        _uiState.update { it.copy(transientMessage = null) }
     }
 }
