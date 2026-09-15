@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 data class HomeUiState(
     val isLoading: Boolean = true,
     val apps: List<InstalledApp> = emptyList(),
+    val hiddenApps: List<InstalledApp> = emptyList(),
     val favoriteApps: List<InstalledApp> = emptyList(),
     val favoritePackageNames: List<String> = emptyList(),
     val hiddenPackageNames: Set<String> = emptySet(),
@@ -147,10 +148,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val visibleApps = discoveredApps.filterNot {
             it.packageName in preferences.hiddenPackages
         }
-        val appByPackage = visibleApps.associateBy { it.packageName }
+        val hiddenApps = discoveredApps.filter {
+            it.packageName in preferences.hiddenPackages
+        }
+        val visibleAppByPackage = visibleApps.associateBy { it.packageName }
 
         val favoriteApps = if (preferences.favoritesInitialized) {
-            preferences.favoritePackages.mapNotNull(appByPackage::get)
+            preferences.favoritePackages.mapNotNull(visibleAppByPackage::get)
         } else {
             visibleApps.take(DEFAULT_FAVORITE_COUNT)
         }
@@ -158,6 +162,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return current.copy(
             isLoading = isLoading,
             apps = visibleApps,
+            hiddenApps = hiddenApps,
             favoriteApps = favoriteApps,
             favoritePackageNames = preferences.favoritePackages,
             hiddenPackageNames = preferences.hiddenPackages,
