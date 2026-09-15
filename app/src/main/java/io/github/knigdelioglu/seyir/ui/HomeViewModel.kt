@@ -85,44 +85,65 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun openApp(app: InstalledApp) {
         val launched = appRepository.launch(app.packageName)
         if (!launched) {
-            _uiState.update {
-                it.copy(transientMessage = "${app.label} açılamadı.")
-            }
+            showMessage("${app.label} açılamadı.")
+        }
+    }
+
+    fun openAppInfo(app: InstalledApp) {
+        if (!appRepository.openAppInfo(app.packageName)) {
+            showMessage("${app.label} için uygulama bilgisi açılamadı.")
         }
     }
 
     fun toggleFavorite(app: InstalledApp) {
         viewModelScope.launch {
             val isFavorite = preferencesRepository.toggleFavorite(app.packageName)
-            _uiState.update {
-                it.copy(
-                    transientMessage = if (isFavorite) {
-                        "${app.label} favorilere eklendi."
-                    } else {
-                        "${app.label} favorilerden çıkarıldı."
-                    },
-                )
-            }
+            showMessage(
+                if (isFavorite) {
+                    "${app.label} favorilere eklendi."
+                } else {
+                    "${app.label} favorilerden çıkarıldı."
+                },
+            )
+        }
+    }
+
+    fun moveFavorite(app: InstalledApp, offset: Int) {
+        if (offset == 0) return
+
+        viewModelScope.launch {
+            val favorites = latestPreferences.favoritePackages.toMutableList()
+            val currentIndex = favorites.indexOf(app.packageName)
+            if (currentIndex == -1) return@launch
+
+            val targetIndex = (currentIndex + offset).coerceIn(favorites.indices)
+            if (targetIndex == currentIndex) return@launch
+
+            val packageName = favorites.removeAt(currentIndex)
+            favorites.add(targetIndex, packageName)
+            preferencesRepository.setFavorites(favorites)
         }
     }
 
     fun setAppHidden(app: InstalledApp, hidden: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setHidden(app.packageName, hidden)
-            _uiState.update {
-                it.copy(
-                    transientMessage = if (hidden) {
-                        "${app.label} gizlendi."
-                    } else {
-                        "${app.label} yeniden gösteriliyor."
-                    },
-                )
-            }
+            showMessage(
+                if (hidden) {
+                    "${app.label} gizlendi."
+                } else {
+                    "${app.label} yeniden gösteriliyor."
+                },
+            )
         }
     }
 
     fun dismissTransientMessage() {
         _uiState.update { it.copy(transientMessage = null) }
+    }
+
+    private fun showMessage(message: String) {
+        _uiState.update { it.copy(transientMessage = message) }
     }
 
     private fun observePreferences() {
