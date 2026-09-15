@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,10 +81,11 @@ fun AllAppsScreen(
         apps.associate { it.packageName to FocusRequester() }
     }
     val hiddenAppsFocusRequester = remember { FocusRequester() }
+    val gridState = rememberLazyGridState()
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
     var restoreRequest by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(apps, focusTarget) {
+    LaunchedEffect(apps, hiddenAppCount, focusTarget) {
         if (apps.isEmpty() && hiddenAppCount == 0) return@LaunchedEffect
         delay(120)
         requestAllAppsFocus(
@@ -91,6 +94,7 @@ fun AllAppsScreen(
             appFocusRequesters = appFocusRequesters,
             hiddenAppCount = hiddenAppCount,
             hiddenAppsFocusRequester = hiddenAppsFocusRequester,
+            gridState = gridState,
         )
     }
 
@@ -103,6 +107,7 @@ fun AllAppsScreen(
             appFocusRequesters = appFocusRequesters,
             hiddenAppCount = hiddenAppCount,
             hiddenAppsFocusRequester = hiddenAppsFocusRequester,
+            gridState = gridState,
         )
     }
 
@@ -181,6 +186,7 @@ fun AllAppsScreen(
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
+                    state = gridState,
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
                     verticalArrangement = Arrangement.spacedBy(SeyirSpacing.Section),
@@ -225,6 +231,12 @@ fun AllAppsScreen(
                 onToggleFavorite(app)
             },
             onHide = {
+                val currentIndex = apps.indexOfFirst { it.packageName == app.packageName }
+                val fallback = apps.getOrNull(currentIndex + 1)
+                    ?: apps.getOrNull(currentIndex - 1)
+                onFocusTargetChanged(
+                    fallback?.packageName ?: AllAppsFocusKey.HIDDEN_APPS,
+                )
                 closeDialogAndRestore()
                 onHideApp(app)
             },
@@ -237,21 +249,37 @@ fun AllAppsScreen(
     }
 }
 
-private fun requestAllAppsFocus(
+private suspend fun requestAllAppsFocus(
     apps: List<InstalledApp>,
     focusTarget: String?,
     appFocusRequesters: Map<String, FocusRequester>,
     hiddenAppCount: Int,
     hiddenAppsFocusRequester: FocusRequester,
+    gridState: LazyGridState,
 ) {
-    val requester = when {
-        focusTarget == AllAppsFocusKey.HIDDEN_APPS && hiddenAppCount > 0 -> hiddenAppsFocusRequester
-        focusTarget != null -> appFocusRequesters[focusTarget]
-        else -> null
-    } ?: apps.firstOrNull()?.let { appFocusRequesters[it.packageName] }
-        ?: if (hiddenAppCount > 0) hiddenAppsFocusRequester else null
+    if (focusTarget == AllAppsFocusKey.HIDDEN_APPS && hiddenAppCount > 0) {
+        runCatching { hiddenAppsFocusRequester.requestFocus() }
+        return
+    }
 
-    requester?.let { runCatching { it.requestFocus() } }
+    val targetIndex = when {
+        focusTarget != null -> apps.indexOfFirst { it.packageName == focusTarget }
+        else -> -1
+    }.takeIf { it >= 0 } ?: if (apps.isNotEmpty()) 0 else -1
+
+    if (targetIndex >= 0) {
+        runCatching { gridState.scrollToItem(targetIndex) }
+        delay(16)
+        val packageName = apps[targetIndex].packageName
+        appFocusRequesters[packageName]?.let { requester ->
+            runCatching { requester.requestFocus() }
+        }
+        return
+    }
+
+    if (hiddenAppCount > 0) {
+        runCatching { hiddenAppsFocusRequester.requestFocus() }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -267,7 +295,10 @@ private fun AllAppsCard(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(SeyirMotion.FocusDurationMs),
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
         label = "all-apps-card-scale",
     )
 
@@ -314,7 +345,7 @@ private fun AllAppsCard(
                         .align(Alignment.TopEnd)
                         .padding(top = 9.dp, end = 11.dp),
                     fontSize = 14.sp,
-                    color = SeyirColors.TextPrimary.copy(alpha = 0.82f),
+                    color = SeyirColors.Accent.copy(alpha = 0.9f),
                 )
             }
         }
