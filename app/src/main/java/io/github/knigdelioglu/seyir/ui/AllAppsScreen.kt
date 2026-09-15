@@ -51,10 +51,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun AllAppsScreen(
     apps: List<InstalledApp>,
+    hiddenAppCount: Int,
     favoritePackageNames: List<String>,
     transientMessage: String?,
     onAppClick: (InstalledApp) -> Unit,
     onToggleFavorite: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onOpenHiddenApps: () -> Unit,
     onBack: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
@@ -93,15 +96,22 @@ fun AllAppsScreen(
                 .fillMaxSize()
                 .padding(horizontal = 64.dp, vertical = 42.dp),
         ) {
-            Text(
-                text = "‹  Ana ekran",
-                modifier = Modifier
-                    .focusable()
-                    .clickable(onClick = onBack),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.62f),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HeaderAction(
+                    text = "‹  Ana ekran",
+                    onClick = onBack,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (hiddenAppCount > 0) {
+                    HeaderAction(
+                        text = "Gizlenenler  $hiddenAppCount  ›",
+                        onClick = onOpenHiddenApps,
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(18.dp))
             Text(
                 text = "Tüm Uygulamalar",
@@ -119,7 +129,7 @@ fun AllAppsScreen(
 
             if (apps.isEmpty()) {
                 Text(
-                    text = "Açılabilir uygulama bulunamadı.",
+                    text = "Görünür uygulama bulunamadı.",
                     color = Color.White.copy(alpha = 0.62f),
                 )
             } else {
@@ -150,20 +160,10 @@ fun AllAppsScreen(
         }
 
         transientMessage?.let { message ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xEE24242B))
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = message,
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.92f),
-                )
-            }
+            TransientMessage(
+                message = message,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
@@ -178,6 +178,10 @@ fun AllAppsScreen(
             onToggleFavorite = {
                 contextApp = null
                 onToggleFavorite(app)
+            },
+            onHide = {
+                contextApp = null
+                onHideApp(app)
             },
             onDismiss = { contextApp = null },
         )
@@ -260,6 +264,7 @@ private fun AppContextDialog(
     isFavorite: Boolean,
     onOpen: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onHide: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val firstActionFocusRequester = remember { FocusRequester() }
@@ -308,8 +313,38 @@ private fun AppContextDialog(
                 text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
                 onClick = onToggleFavorite,
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            ContextAction(
+                text = "Gizle",
+                onClick = onHide,
+            )
         }
     }
+}
+
+@Composable
+private fun HeaderAction(
+    text: String,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Text(
+        text = text,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (focused) Color.White.copy(alpha = 0.12f)
+                else Color.Transparent,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        fontSize = 15.sp,
+        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
+        color = Color.White.copy(alpha = if (focused) 1f else 0.62f),
+    )
 }
 
 @Composable
@@ -338,6 +373,26 @@ private fun ContextAction(
             fontSize = 16.sp,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
             color = Color.White.copy(alpha = if (focused) 1f else 0.78f),
+        )
+    }
+}
+
+@Composable
+private fun TransientMessage(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .padding(bottom = 42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xEE24242B))
+            .padding(horizontal = 22.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = message,
+            fontSize = 14.sp,
+            color = Color.White.copy(alpha = 0.92f),
         )
     }
 }
