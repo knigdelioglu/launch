@@ -58,13 +58,18 @@ fun HomeScreen(
     onDismissMessage: () -> Unit,
 ) {
     val firstAppFocusRequester = remember { FocusRequester() }
+    val allAppsFocusRequester = remember { FocusRequester() }
     val clock = rememberClock()
-    val homeApps = uiState.apps.take(HOME_APP_LIMIT)
+    val homeApps = uiState.favoriteApps
 
-    LaunchedEffect(uiState.apps) {
-        if (uiState.apps.isNotEmpty()) {
-            delay(150)
+    LaunchedEffect(homeApps, uiState.apps) {
+        if (uiState.apps.isEmpty()) return@LaunchedEffect
+
+        delay(150)
+        if (homeApps.isNotEmpty()) {
             runCatching { firstAppFocusRequester.requestFocus() }
+        } else {
+            runCatching { allAppsFocusRequester.requestFocus() }
         }
     }
 
@@ -115,7 +120,7 @@ fun HomeScreen(
             when {
                 uiState.apps.isNotEmpty() -> {
                     Text(
-                        text = "Uygulamalar",
+                        text = "Favoriler",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         color = Color.White.copy(alpha = 0.82f),
@@ -145,8 +150,22 @@ fun HomeScreen(
                                 label = "Tüm Uygulamalar",
                                 symbol = "•••",
                                 onClick = onOpenAllApps,
+                                modifier = if (homeApps.isEmpty()) {
+                                    Modifier.focusRequester(allAppsFocusRequester)
+                                } else {
+                                    Modifier
+                                },
                             )
                         }
+                    }
+
+                    if (homeApps.isEmpty()) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = "Favori uygulama yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz.",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.46f),
+                        )
                     }
                 }
 
@@ -269,6 +288,7 @@ private fun ActionCard(
     label: String,
     symbol: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -278,7 +298,7 @@ private fun ActionCard(
     )
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(168.dp)
             .graphicsLayer {
                 scaleX = scale
@@ -378,5 +398,3 @@ private fun greetingFor(time: LocalTime): String = when (time.hour) {
     in 12..17 -> "İyi günler"
     else -> "İyi akşamlar"
 }
-
-private const val HOME_APP_LIMIT = 7
