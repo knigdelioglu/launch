@@ -54,6 +54,7 @@ fun HomeScreen(
     uiState: HomeUiState,
     onAppClick: (InstalledApp) -> Unit,
     onRetry: () -> Unit,
+    onDismissMessage: () -> Unit,
 ) {
     val firstAppFocusRequester = remember { FocusRequester() }
     val clock = rememberClock()
@@ -62,6 +63,13 @@ fun HomeScreen(
         if (uiState.apps.isNotEmpty()) {
             delay(150)
             runCatching { firstAppFocusRequester.requestFocus() }
+        }
+    }
+
+    LaunchedEffect(uiState.transientMessage) {
+        if (uiState.transientMessage != null) {
+            delay(2_500)
+            onDismissMessage()
         }
     }
 
@@ -114,23 +122,22 @@ fun HomeScreen(
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(18.dp),
-                        content = {
-                            itemsIndexed(
-                                items = uiState.apps,
-                                key = { _, app -> app.packageName },
-                            ) { index, app ->
-                                AppCard(
-                                    app = app,
-                                    onClick = { onAppClick(app) },
-                                    modifier = if (index == 0) {
-                                        Modifier.focusRequester(firstAppFocusRequester)
-                                    } else {
-                                        Modifier
-                                    },
-                                )
-                            }
-                        },
-                    )
+                    ) {
+                        itemsIndexed(
+                            items = uiState.apps,
+                            key = { _, app -> app.packageName },
+                        ) { index, app ->
+                            AppCard(
+                                app = app,
+                                onClick = { onAppClick(app) },
+                                modifier = if (index == 0) {
+                                    Modifier.focusRequester(firstAppFocusRequester)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                        }
+                    }
                 }
 
                 uiState.isLoading -> LoadingState()
@@ -147,6 +154,23 @@ fun HomeScreen(
                 fontSize = 13.sp,
                 color = Color.White.copy(alpha = 0.34f),
             )
+        }
+
+        uiState.transientMessage?.let { message ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xEE24242B))
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
+            ) {
+                Text(
+                    text = message,
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.92f),
+                )
+            }
         }
     }
 }
