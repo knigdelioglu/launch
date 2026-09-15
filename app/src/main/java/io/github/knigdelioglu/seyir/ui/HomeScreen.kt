@@ -2,9 +2,11 @@ package io.github.knigdelioglu.seyir.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
@@ -53,6 +56,8 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     uiState: HomeUiState,
     onAppClick: (InstalledApp) -> Unit,
+    onMoveFavorite: (InstalledApp, Int) -> Unit,
+    onToggleFavorite: (InstalledApp) -> Unit,
     onOpenAllApps: () -> Unit,
     onRetry: () -> Unit,
     onDismissMessage: () -> Unit,
@@ -61,6 +66,7 @@ fun HomeScreen(
     val allAppsFocusRequester = remember { FocusRequester() }
     val clock = rememberClock()
     val homeApps = uiState.favoriteApps
+    var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
 
     LaunchedEffect(homeApps, uiState.apps) {
         if (uiState.apps.isEmpty()) return@LaunchedEffect
@@ -137,6 +143,7 @@ fun HomeScreen(
                             AppCard(
                                 app = app,
                                 onClick = { onAppClick(app) },
+                                onLongClick = { contextApp = app },
                                 modifier = if (index == 0) {
                                     Modifier.focusRequester(firstAppFocusRequester)
                                 } else {
@@ -159,14 +166,16 @@ fun HomeScreen(
                         }
                     }
 
-                    if (homeApps.isEmpty()) {
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = "Favori uygulama yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz.",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.46f),
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(18.dp))
+                    Text(
+                        text = if (homeApps.isEmpty()) {
+                            "Favori uygulama yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
+                        } else {
+                            "Uzun OK: favoriyi taşı veya kaldır"
+                        },
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.46f),
+                    )
                 }
 
                 uiState.isLoading -> LoadingState()
@@ -202,6 +211,28 @@ fun HomeScreen(
             }
         }
     }
+
+    contextApp?.let { app ->
+        val index = homeApps.indexOfFirst { it.packageName == app.packageName }
+        FavoriteContextDialog(
+            app = app,
+            canMoveLeft = index > 0,
+            canMoveRight = index >= 0 && index < homeApps.lastIndex,
+            onMoveLeft = {
+                contextApp = null
+                onMoveFavorite(app, -1)
+            },
+            onMoveRight = {
+                contextApp = null
+                onMoveFavorite(app, 1)
+            },
+            onRemove = {
+                contextApp = null
+                onToggleFavorite(app)
+            },
+            onDismiss = { contextApp = null },
+        )
+    }
 }
 
 @Composable
@@ -227,10 +258,12 @@ private fun TopBar(clock: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppCard(
     app: InstalledApp,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -249,7 +282,10 @@ private fun AppCard(
             }
             .onFocusChanged { focused = it.isFocused }
             .focusable()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         horizontalAlignment = Alignment.Start,
     ) {
         Box(
@@ -335,6 +371,112 @@ private fun ActionCard(
             fontSize = 15.sp,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
             color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+        )
+    }
+}
+
+@Composable
+private fun FavoriteContextDialog(
+    app: InstalledApp,
+    canMoveLeft: Boolean,
+    canMoveRight: Boolean,
+    onMoveLeft: () -> Unit,
+    onMoveRight: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val firstActionFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(80)
+        runCatching { firstActionFocusRequester.requestFocus() }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .width(420.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF1B1B21))
+                .padding(24.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    bitmap = app.icon.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(42.dp),
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Text(
+                    text = app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
+            }
+            Spacer(modifier = Modifier.height(22.dp))
+
+            if (canMoveLeft) {
+                FavoriteAction(
+                    text = "Sola taşı",
+                    onClick = onMoveLeft,
+                    modifier = Modifier.focusRequester(firstActionFocusRequester),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            if (canMoveRight) {
+                FavoriteAction(
+                    text = "Sağa taşı",
+                    onClick = onMoveRight,
+                    modifier = if (!canMoveLeft) {
+                        Modifier.focusRequester(firstActionFocusRequester)
+                    } else {
+                        Modifier
+                    },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            FavoriteAction(
+                text = "Favorilerden çıkar",
+                onClick = onRemove,
+                modifier = if (!canMoveLeft && !canMoveRight) {
+                    Modifier.focusRequester(firstActionFocusRequester)
+                } else {
+                    Modifier
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FavoriteAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (focused) Color.White.copy(alpha = 0.15f)
+                else Color.Transparent,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+    ) {
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+            color = Color.White.copy(alpha = if (focused) 1f else 0.78f),
         )
     }
 }
