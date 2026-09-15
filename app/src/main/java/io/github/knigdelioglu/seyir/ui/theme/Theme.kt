@@ -5,19 +5,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
-private val SeyirColors = darkColorScheme(
-    primary = Color.White,
+private val SeyirColorScheme = darkColorScheme(
+    primary = SeyirColors.TextPrimary,
     onPrimary = Color.Black,
-    background = Color(0xFF09090C),
-    onBackground = Color.White,
-    surface = Color(0xFF111116),
-    onSurface = Color.White,
+    background = SeyirColors.BackgroundMiddle,
+    onBackground = SeyirColors.TextPrimary,
+    surface = SeyirColors.Surface,
+    onSurface = SeyirColors.TextPrimary,
+    surfaceVariant = SeyirColors.SurfaceElevated,
+    onSurfaceVariant = SeyirColors.TextSecondary,
 )
 
 @Composable
 fun SeyirTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = SeyirColors,
+        colorScheme = SeyirColorScheme,
         content = content,
     )
 }
