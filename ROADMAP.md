@@ -25,12 +25,12 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [ ] `minSdk` hedef cihaz üzerinden doğrula
 - [x] güncel stable `compileSdk/targetSdk` seç
 - [x] `ACTION_MAIN + CATEGORY_HOME + CATEGORY_DEFAULT` manifest tanımı
-- [~] TV banner/icon placeholder ekle (ikon mevcut, TV banner bekliyor)
+- [x] TV banner/icon placeholder ekle
 - [~] landscape-only davranışı doğrula (manifest kilidi mevcut, cihaz testi bekliyor)
 - [x] tek ekranlık Home prototipi
 - [~] D-pad focus davranışı (kodlandı, cihaz testi bekliyor)
 - [ ] HOME tuşuyla geri dönüş testi
-- [ ] debug APK üret
+- [x] debug APK üret (CI artifact olarak da yayınlanıyor)
 - [ ] gerçek TV box üzerinde varsayılan launcher seçimini test et
 
 ### Çıkış kriterleri
@@ -54,15 +54,16 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] normal launch intent fallback davranışını tanımla
 - [x] launch edilemeyen paketleri filtrele
 - [x] uygulama adı ve ikonunu normalize et
-- [~] sistem/self paket filtreleri (self filtrelendi; sistem uygulaması politikası M1 içinde netleştirilecek)
-- [ ] uygulama yükleme/kaldırma değişikliklerini algılama stratejisi
-- [ ] Tüm Uygulamalar grid'i
+- [x] self/devre dışı paketleri filtrele; launch edilebilir sistem uygulamalarını göstermeye devam et
+- [x] uygulama yükleme/kaldırma/değişikliklerini dinamik receiver ile algıla; resume'da tam tarama yap
+- [x] Tüm Uygulamalar 5 sütunlu TV grid'i
 - [x] OK ile uygulama açma
-- [ ] başarısız launch için kullanıcı dostu hata
+- [x] başarısız launch için kullanıcı dostu geçici hata bildirimi
+- [x] hatalı label/icon metadata'sını tek paket seviyesinde izole et
 
 ### Testler
 
-- [ ] 10 uygulamalı cihaz
+- [ ] 10 uygulamalı gerçek cihaz
 - [ ] 50+ uygulamalı cihaz/emülatör
 - [ ] kaldırılan uygulama
 - [ ] devre dışı paket
@@ -71,9 +72,9 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Çıkış kriterleri
 
-- [ ] Görünen her kart geçerli şekilde açılabiliyor veya kontrollü hata veriyor.
+- [~] Görünen her kart geçerli şekilde açılabiliyor veya kontrollü hata veriyor (kod tamam; cihaz testi bekliyor).
 - [ ] Grid hızlı D-pad kullanımında focus kaybetmiyor.
-- [ ] Paket kaldırma launcher state'ini bozmuyor.
+- [~] Paket kaldırma launcher state'ini bozmuyor (receiver + stale cleanup tamam; cihaz testi bekliyor).
 
 ---
 
@@ -83,30 +84,30 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### İşler
 
-- [ ] Jetpack DataStore ekle
-- [ ] versionlanabilir launcher preferences modeli
-- [ ] favoriye ekle
-- [ ] favoriden çıkar
-- [ ] favori sıralama
-- [ ] uygulama gizleme
-- [ ] gizleneni geri getirme
-- [ ] kaldırılmış paketleri stale state'ten temizleme
-- [ ] uzun OK context menu
-- [ ] Uygulama Bilgisi intent'i
+- [x] Jetpack DataStore ekle
+- [x] versionlanabilir launcher preferences modeli
+- [x] favoriye ekle
+- [x] favoriden çıkar
+- [x] favori sıralama (uzun OK → sola/sağa taşı)
+- [x] uygulama gizleme
+- [x] Gizlenen Uygulamalar ekranından geri getirme
+- [x] kaldırılmış paketleri stale state'ten temizleme
+- [x] uzun OK context menu
+- [x] Uygulama Bilgisi intent'i
 - [ ] Android uninstall intent'i (opsiyonel menü aksiyonu)
 
 ### UX
 
-- [ ] context menu focus trap doğru çalışıyor
+- [~] context menu focus trap kodlandı; gerçek kumanda testi bekliyor
 - [ ] menü kapanınca focus kaynak karta dönüyor
-- [ ] taşıma modu kumandayla anlaşılır
-- [ ] destructive aksiyonlarda yanlış tetikleme önleniyor
+- [~] taşıma akışı kumandaya özel menü olarak uygulandı; cihaz testi bekliyor
+- [~] gizleme geri alınabilir; yanlış tetikleme/uzun-OK davranışı cihazda doğrulanacak
 
 ### Çıkış kriterleri
 
-- [ ] Favori/gizli state process restart sonrası korunuyor.
-- [ ] Uygulama kaldırıldığında stale kayıt sorun yaratmıyor.
-- [ ] Tüm yönetim işlemleri yalnız kumandayla yapılabiliyor.
+- [~] Favori/gizli state DataStore ile process restart sonrası korunacak; gerçek process recreation testi bekliyor.
+- [~] Uygulama kaldırıldığında stale kayıt temizleniyor; cihaz testi bekliyor.
+- [~] Tüm yönetim işlemleri yalnız kumandayla tasarlandı; gerçek kumanda testi bekliyor.
 
 ---
 
@@ -130,8 +131,8 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 - [~] üst durum alanı (isim + saat ilk prototipte mevcut)
 - [x] saat
-- [ ] favori satırı
-- [ ] Tüm Uygulamalar girişi
+- [x] kalıcı favori satırı
+- [x] Tüm Uygulamalar girişi
 - [ ] Ayarlar girişi
 - [x] boş state
 - [x] ilk focus davranışı
@@ -139,8 +140,8 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Focus kalitesi
 
-- [~] sağ/sol geçişleri deterministik (tek satır prototip, cihaz testi bekliyor)
-- [ ] yukarı/aşağı geçişleri deterministik
+- [~] sağ/sol geçişleri deterministik (kodlandı, cihaz testi bekliyor)
+- [~] grid yukarı/aşağı geçişleri Compose focus sistemiyle mevcut; cihaz testi bekliyor
 - [ ] focus off-screen kalmıyor
 - [ ] scroll sırasında focus zıplamıyor
 - [ ] hızlı D-pad spam testinden geçiyor
@@ -180,7 +181,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 - [ ] görünüm ayarları
 - [ ] favori yönetimi
-- [ ] gizli uygulamalar yönetimi
+- [~] gizli uygulamalar yönetiminin temel ekranı mevcut; Ayarlar entegrasyonu bekliyor
 - [ ] başlangıç davranışı
 - [ ] sistem ayarlarına güvenli kısayollar
 - [ ] hakkında / sürüm ekranı
@@ -209,7 +210,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [ ] güvenilir recent apps veri kaynağını belirle
 - [ ] yalnız uygulanabilir cihaz/API davranışını kullan
 - [ ] favori tekrarlarını filtrele
-- [ ] paket değişiklik receiver/observer stratejisi
+- [x] paket değişiklik receiver/observer stratejisi (foreground receiver + onResume tam tarama)
 - [ ] ekran açma/kapatma yaşam döngüsü
 - [ ] process recreation testi
 - [ ] low-memory recreation testi
@@ -323,8 +324,9 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 - [ ] release signing
 - [ ] reproducible/reviewable release süreci
-- [ ] GitHub Actions CI
-- [ ] lint + unit test + assemble
+- [x] GitHub Actions CI (`assembleDebug`)
+- [~] lint + unit test + assemble (assemble aktif; lint/unit test bekliyor)
+- [x] her başarılı build için süreli debug APK artifact
 - [ ] release APK artifact
 - [ ] GitHub Releases
 - [ ] SHA-256 checksum
@@ -344,15 +346,15 @@ Seyir 1.0 aşağıdakilerin tamamı sağlanmadan yayınlanmış sayılmaz:
 
 - [ ] Android TV/TV box üzerinde varsayılan HOME launcher olarak kullanılabiliyor
 - [ ] yalnız D-pad ile tam kullanım
-- [ ] favori ekleme/çıkarma/sıralama
-- [ ] uygulama gizleme/geri getirme
+- [~] favori ekleme/çıkarma/sıralama kodlandı; cihaz doğrulaması bekliyor
+- [~] uygulama gizleme/geri getirme kodlandı; cihaz doğrulaması bekliyor
 - [ ] deterministic focus
-- [ ] hızlı ve stabil uygulama açma
+- [~] hızlı ve stabil uygulama açma kodlandı; cihaz doğrulaması bekliyor
 - [ ] 1080p + 4K doğrulaması
-- [ ] reklam yok
-- [ ] telemetry yok
-- [ ] zorunlu hesap yok
-- [ ] launcher core için internet zorunluluğu yok
+- [x] reklam yok
+- [x] telemetry yok
+- [x] zorunlu hesap yok
+- [x] launcher core için internet zorunluluğu yok
 - [ ] release APK + checksum
 - [ ] lisanslar ve üçüncü taraf bildirimleri doğru
 - [ ] AirPlay dahilse M6 lisans kapısı tamamlanmış
