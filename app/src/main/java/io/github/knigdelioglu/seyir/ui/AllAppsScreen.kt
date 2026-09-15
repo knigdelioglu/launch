@@ -46,6 +46,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
+import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
+import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
+import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
+import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
+import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
+import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
 
 @Composable
@@ -85,9 +91,9 @@ fun AllAppsScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF111116),
-                        Color(0xFF09090C),
-                        Color(0xFF050507),
+                        SeyirColors.BackgroundTop,
+                        SeyirColors.BackgroundMiddle,
+                        SeyirColors.BackgroundBottom,
                     ),
                 ),
             ),
@@ -95,7 +101,10 @@ fun AllAppsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 64.dp, vertical = 42.dp),
+                .padding(
+                    horizontal = SeyirSpacing.ScreenHorizontal,
+                    vertical = SeyirSpacing.ScreenVertical,
+                ),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -113,32 +122,33 @@ fun AllAppsScreen(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
+
+            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
                 text = "Tüm Uygulamalar",
-                fontSize = 34.sp,
+                fontSize = SeyirType.Hero,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = SeyirColors.TextPrimary,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
                 text = "${apps.size} uygulama  •  Uzun OK: seçenekler  •  BACK: ana ekran",
-                fontSize = 15.sp,
-                color = Color.White.copy(alpha = 0.52f),
+                fontSize = SeyirType.CardLabel,
+                color = SeyirColors.TextTertiary,
             )
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
             if (apps.isEmpty()) {
                 Text(
                     text = "Görünür uygulama bulunamadı.",
-                    color = Color.White.copy(alpha = 0.62f),
+                    color = SeyirColors.TextSecondary,
                 )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
+                    verticalArrangement = Arrangement.spacedBy(SeyirSpacing.Section),
                 ) {
                     itemsIndexed(
                         items = apps,
@@ -204,14 +214,14 @@ private fun AllAppsCard(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.06f else 1f,
-        animationSpec = tween(160),
+        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
+        animationSpec = tween(SeyirMotion.FocusDurationMs),
         label = "all-apps-card-scale",
     )
 
     Column(
         modifier = modifier
-            .width(168.dp)
+            .width(SeyirSize.AppCardWidth)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -226,18 +236,20 @@ private fun AllAppsCard(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 168.dp, height = 102.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .size(
+                    width = SeyirSize.AppCardWidth,
+                    height = SeyirSize.AppCardHeight,
+                )
+                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) Color.White.copy(alpha = 0.15f)
-                    else Color.White.copy(alpha = 0.065f),
+                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Image(
                 bitmap = app.icon.asImageBitmap(),
                 contentDescription = app.label,
-                modifier = Modifier.size(58.dp),
+                modifier = Modifier.size(SeyirSize.AppIcon),
             )
 
             if (isFavorite) {
@@ -245,20 +257,20 @@ private fun AllAppsCard(
                     text = "★",
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 10.dp),
+                        .padding(top = 9.dp, end = 11.dp),
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.82f),
+                    color = SeyirColors.TextPrimary.copy(alpha = 0.82f),
                 )
             }
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 14.sp,
+            fontSize = SeyirType.CardLabel,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = Color.White.copy(alpha = if (focused) 1f else 0.76f),
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
@@ -284,13 +296,11 @@ private fun AppContextDialog(
         Column(
             modifier = Modifier
                 .width(420.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF1B1B21))
+                .clip(RoundedCornerShape(SeyirRadius.Dialog))
+                .background(SeyirColors.SurfaceElevated)
                 .padding(24.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     bitmap = app.icon.asImageBitmap(),
                     contentDescription = null,
@@ -303,7 +313,7 @@ private fun AppContextDialog(
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    color = SeyirColors.TextPrimary,
                 )
             }
 
@@ -314,17 +324,17 @@ private fun AppContextDialog(
                 onClick = onOpen,
                 modifier = Modifier.focusRequester(firstActionFocusRequester),
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             ContextAction(
                 text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
                 onClick = onToggleFavorite,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             ContextAction(
                 text = "Gizle",
                 onClick = onHide,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             ContextAction(
                 text = "Uygulama bilgisi",
                 onClick = onAppInfo,
@@ -343,18 +353,17 @@ private fun HeaderAction(
     Text(
         text = text,
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(SeyirRadius.Pill))
             .background(
-                if (focused) Color.White.copy(alpha = 0.12f)
-                else Color.Transparent,
+                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
             .focusable()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        fontSize = 15.sp,
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        fontSize = SeyirType.Meta,
         fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-        color = Color.White.copy(alpha = if (focused) 1f else 0.62f),
+        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
     )
 }
 
@@ -369,10 +378,9 @@ private fun ContextAction(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(SeyirRadius.Action))
             .background(
-                if (focused) Color.White.copy(alpha = 0.15f)
-                else Color.Transparent,
+                if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
             )
             .onFocusChanged { focused = it.isFocused }
             .focusable()
@@ -381,9 +389,9 @@ private fun ContextAction(
     ) {
         Text(
             text = text,
-            fontSize = 16.sp,
+            fontSize = SeyirType.CardLabel,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = Color.White.copy(alpha = if (focused) 1f else 0.78f),
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
@@ -395,15 +403,15 @@ private fun TransientMessage(
 ) {
     Box(
         modifier = modifier
-            .padding(bottom = 42.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xEE24242B))
+            .padding(bottom = SeyirSpacing.ScreenVertical)
+            .clip(RoundedCornerShape(SeyirRadius.Action))
+            .background(SeyirColors.SurfaceElevated)
             .padding(horizontal = 22.dp, vertical = 12.dp),
     ) {
         Text(
             text = message,
-            fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.92f),
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextPrimary,
         )
     }
 }
