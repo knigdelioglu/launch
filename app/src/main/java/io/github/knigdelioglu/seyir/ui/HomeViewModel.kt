@@ -3,10 +3,12 @@ package io.github.knigdelioglu.seyir.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.knigdelioglu.seyir.data.AccentMode
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.data.InstalledAppRepository
 import io.github.knigdelioglu.seyir.data.LauncherPreferences
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesRepository
+import io.github.knigdelioglu.seyir.data.ThemeMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +25,9 @@ data class HomeUiState(
     val favoriteApps: List<InstalledApp> = emptyList(),
     val favoritePackageNames: List<String> = emptyList(),
     val hiddenPackageNames: Set<String> = emptySet(),
+    val themeMode: ThemeMode = ThemeMode.DARK,
+    val accentMode: AccentMode = AccentMode.NEUTRAL,
+    val reducedMotion: Boolean = false,
     val errorMessage: String? = null,
     val transientMessage: String? = null,
 )
@@ -138,6 +143,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setThemeMode(themeMode: ThemeMode) {
+        viewModelScope.launch {
+            preferencesRepository.setThemeMode(themeMode)
+        }
+    }
+
+    fun setAccentMode(accentMode: AccentMode) {
+        viewModelScope.launch {
+            preferencesRepository.setAccentMode(accentMode)
+        }
+    }
+
+    fun setReducedMotion(reducedMotion: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setReducedMotion(reducedMotion)
+        }
+    }
+
     fun dismissTransientMessage() {
         _uiState.update { it.copy(transientMessage = null) }
     }
@@ -187,6 +210,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             favoriteApps = favoriteApps,
             favoritePackageNames = preferences.favoritePackages,
             hiddenPackageNames = preferences.hiddenPackages,
+            themeMode = preferences.themeMode,
+            accentMode = preferences.accentMode,
+            reducedMotion = preferences.reducedMotion,
             errorMessage = null,
         )
     }
