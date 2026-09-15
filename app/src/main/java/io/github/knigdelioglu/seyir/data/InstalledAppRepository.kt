@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -79,11 +81,22 @@ class InstalledAppRepository(
     fun launch(packageName: String): Boolean {
         val intent = launchIntent(packageName) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching {
-            context.startActivity(intent)
-            true
-        }.getOrDefault(false)
+        return startActivity(intent)
     }
+
+    fun openAppInfo(packageName: String): Boolean {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:$packageName"),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        return startActivity(intent)
+    }
+
+    private fun startActivity(intent: Intent): Boolean = runCatching {
+        context.startActivity(intent)
+        true
+    }.getOrDefault(false)
 
     private fun launchIntent(packageName: String): Intent? =
         packageManager.getLeanbackLaunchIntentForPackage(packageName)
