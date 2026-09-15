@@ -117,26 +117,27 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Design system
 
-- [ ] spacing scale
-- [ ] typography scale
-- [ ] corner radius tokenları
-- [ ] focus scale tokenları
-- [ ] elevation/shadow yaklaşımı
-- [ ] motion duration/easing tokenları
-- [ ] Dark palette
+- [x] spacing scale (`SeyirSpacing`)
+- [x] typography scale (`SeyirType`)
+- [x] corner radius tokenları (`SeyirRadius`)
+- [x] focus scale tokenları (`SeyirMotion.FocusScale`)
+- [x] elevation/shadow yaklaşımı (ağır shadow yerine düz surface hiyerarşisi)
+- [~] motion duration/easing tokenları (duration merkezileştirildi; explicit easing tokenı bekliyor)
+- [x] Dark palette (`SeyirColors`)
 - [ ] Black palette
 - [ ] accent altyapısı
 
 ### Home UI
 
-- [~] üst durum alanı (isim + saat ilk prototipte mevcut)
+- [x] üst durum alanı (marka + alt başlık + Ayarlar + saat)
 - [x] saat
 - [x] kalıcı favori satırı
 - [x] Tüm Uygulamalar girişi
-- [ ] Ayarlar girişi
+- [x] Ayarlar girişi ve TV uyumlu Ayarlar kabuğu
 - [x] boş state
 - [x] ilk focus davranışı
-- [ ] focus restore
+- [~] focus restore (favori paket anahtarı / Tüm Uygulamalar / Ayarlar için kodlandı ve CI doğrulandı; gerçek kumanda testi bekliyor)
+- [x] Home, Tüm Uygulamalar, Gizlenenler ve Ayarlar ortak design tokenlarını kullanıyor
 
 ### Focus kalitesi
 
@@ -156,7 +157,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Çıkış kriterleri
 
-- [ ] Ana ekran ürün kalitesinde görünüyor.
+- [ ] Ana ekran ürün kalitesinde görünüyor (kod/UI yenilendi; gerçek TV değerlendirmesi bekliyor).
 - [ ] Focus animasyonları düşük güçlü cihazı belirgin yavaşlatmıyor.
 - [ ] 1080p ve 4K'da layout taşmıyor.
 - [ ] Dokunmatik olmadan tüm ana akış tamamlanabiliyor.
@@ -179,12 +180,13 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 
 ### Ayarlar
 
+- [~] TV uyumlu Ayarlar kabuğu mevcut; işlevsel görünüm ayarları M4'te eklenecek
 - [ ] görünüm ayarları
 - [ ] favori yönetimi
-- [~] gizli uygulamalar yönetiminin temel ekranı mevcut; Ayarlar entegrasyonu bekliyor
+- [~] gizli uygulamalar yönetiminin temel ekranı mevcut; Ayarlar → Uygulamaları yönet üzerinden erişilebiliyor
 - [ ] başlangıç davranışı
 - [ ] sistem ayarlarına güvenli kısayollar
-- [ ] hakkında / sürüm ekranı
+- [~] sürüm bilgisi Ayarlar kabuğunda gösteriliyor; tam Hakkında ekranı bekliyor
 
 ### Görünüm
 
