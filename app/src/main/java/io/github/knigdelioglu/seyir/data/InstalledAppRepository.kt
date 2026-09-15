@@ -36,18 +36,29 @@ class InstalledAppRepository(
                     return@forEach
                 }
 
+                if (!activityInfo.enabled || !activityInfo.applicationInfo.enabled) {
+                    return@forEach
+                }
+
                 if (launchIntent(packageName) == null) {
                     return@forEach
                 }
 
-                val label = resolveInfo.loadLabel(packageManager)
-                    ?.toString()
-                    ?.trim()
-                    .orEmpty()
+                val label = runCatching {
+                    resolveInfo.loadLabel(packageManager)
+                        ?.toString()
+                        ?.trim()
+                        .orEmpty()
+                }.getOrDefault("")
                     .ifBlank { packageName.substringAfterLast('.') }
 
-                val icon = resolveInfo.loadIcon(packageManager)
-                    .toBitmap(width = ICON_SIZE_PX, height = ICON_SIZE_PX)
+                val drawable = runCatching {
+                    resolveInfo.loadIcon(packageManager)
+                }.getOrNull() ?: packageManager.defaultActivityIcon
+
+                val icon = runCatching {
+                    drawable.toBitmap(width = ICON_SIZE_PX, height = ICON_SIZE_PX)
+                }.getOrNull() ?: return@forEach
 
                 candidates[packageName] = InstalledApp(
                     packageName = packageName,
