@@ -123,7 +123,6 @@ class MainActivity : ComponentActivity() {
                     )
 
                     SCREEN_FAVORITE_TEAMS -> FavoriteTeamsScreen(
-                        configured = true,
                         selectedTeams = uiState.favoriteTeams,
                         searchResults = uiState.teamSearchResults,
                         searchLoading = uiState.teamSearchLoading,
