@@ -47,7 +47,6 @@ import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 
 @Composable
 fun FavoriteTeamsScreen(
-    configured: Boolean,
     selectedTeams: List<FavoriteTeam>,
     searchResults: List<FavoriteTeam>,
     searchLoading: Boolean,
@@ -92,7 +91,7 @@ fun FavoriteTeamsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Seçtiğiniz takımların bugünkü maçları ana ekranda önce gösterilir.",
+                text = "Takım adları cihazda saklanır; Gemini günlük sorguda bu maçlara öncelik verir.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
@@ -130,7 +129,7 @@ fun FavoriteTeamsScreen(
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Takım ara",
+                text = "Takım ekle",
                 fontSize = SeyirType.SectionTitle,
                 fontWeight = FontWeight.SemiBold,
                 color = SeyirColors.TextPrimary,
@@ -149,35 +148,22 @@ fun FavoriteTeamsScreen(
                     },
                     modifier = Modifier.width(620.dp),
                     singleLine = true,
-                    enabled = configured,
                     label = { MaterialText("Takım adı") },
-                    placeholder = { MaterialText("En az 3 karakter") },
+                    placeholder = { MaterialText("Örn. Fenerbahçe") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = SeyirColors.TextPrimary,
                         unfocusedTextColor = SeyirColors.TextPrimary,
-                        disabledTextColor = SeyirColors.TextTertiary,
                         focusedBorderColor = SeyirColors.Accent,
                         unfocusedBorderColor = SeyirColors.Hairline,
-                        disabledBorderColor = SeyirColors.Hairline,
                         focusedLabelColor = SeyirColors.Accent,
                         unfocusedLabelColor = SeyirColors.TextSecondary,
-                        disabledLabelColor = SeyirColors.TextTertiary,
                         cursorColor = SeyirColors.Accent,
                     ),
                 )
                 TeamAction(
-                    text = if (searchLoading) "Aranıyor…" else "Ara",
-                    enabled = configured && query.trim().length >= 3 && !searchLoading,
+                    text = "Ekle",
+                    enabled = query.trim().length >= 3 && !searchLoading,
                     onClick = { onSearch(query) },
-                )
-            }
-
-            if (!configured) {
-                Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
-                Text(
-                    text = "Takım aramak için önce API-Football bağlantısını kurun.",
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextTertiary,
                 )
             }
 
@@ -190,15 +176,9 @@ fun FavoriteTeamsScreen(
                     color = SeyirColors.TextSecondary,
                 )
 
-                searchLoading -> Text(
-                    text = "Takımlar aranıyor…",
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextSecondary,
-                )
-
                 searchResults.isNotEmpty() -> {
                     Text(
-                        text = "Arama sonuçları",
+                        text = "Onayla",
                         fontSize = SeyirType.Meta,
                         fontWeight = FontWeight.Medium,
                         color = SeyirColors.TextTertiary,
@@ -226,7 +206,7 @@ fun FavoriteTeamsScreen(
                 }
 
                 query.trim().length >= 3 -> Text(
-                    text = "Aramak için Ara düğmesine basın.",
+                    text = "Takım adını hazırlamak için Ekle düğmesine basın.",
                     fontSize = SeyirType.Meta,
                     color = SeyirColors.TextTertiary,
                 )
@@ -327,16 +307,6 @@ private fun TeamResultCard(
                 fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Medium,
                 color = SeyirColors.TextPrimary,
             )
-            if (team.country.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = team.country,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextTertiary,
-                )
-            }
         }
         Text(
             text = if (selected) "✓" else "+",
