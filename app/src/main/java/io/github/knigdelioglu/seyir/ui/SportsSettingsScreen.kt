@@ -17,15 +17,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -36,17 +33,17 @@ import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
-import kotlinx.coroutines.delay
 
 @Composable
 fun SportsSettingsScreen(
     configured: Boolean,
+    favoriteTeamCount: Int,
     onSaveKey: (String) -> Unit,
     onClearKey: () -> Unit,
+    onOpenFavoriteTeams: () -> Unit,
     onBack: () -> Unit,
 ) {
     var apiKey by remember { mutableStateOf("") }
-    val inputFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
@@ -123,9 +120,7 @@ fun SportsSettingsScreen(
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it.trim() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(inputFocusRequester),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     label = { MaterialText("API anahtarı") },
@@ -160,11 +155,22 @@ fun SportsSettingsScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(SeyirSpacing.Item))
+                SportsAction(
+                    text = if (favoriteTeamCount == 0) {
+                        "Takımlarım • takım seç"
+                    } else {
+                        "Takımlarım • $favoriteTeamCount seçili"
+                    },
+                    enabled = configured,
+                    onClick = onOpenFavoriteTeams,
+                )
             }
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Seyir anahtarı GitHub reposuna veya APK içine gömmez. Ana ekranda veri 30 dakika önbelleğe alınır; arka planda sürekli sorgu yapılmaz.",
+                text = "Takımlarım seçimi, ilgili maçları Bugün ne var satırının başına taşır. Seyir anahtarı GitHub reposuna veya APK içine gömmez; maç verisi 30 dakika önbelleğe alınır.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )
