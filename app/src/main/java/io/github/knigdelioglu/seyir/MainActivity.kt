@@ -19,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.knigdelioglu.seyir.ui.AllAppsScreen
+import io.github.knigdelioglu.seyir.ui.FavoriteTeamsScreen
 import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
 import io.github.knigdelioglu.seyir.ui.HomeScreen
 import io.github.knigdelioglu.seyir.ui.HomeViewModel
@@ -57,6 +58,10 @@ class MainActivity : ComponentActivity() {
                     screen = when (screen) {
                         SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
                         SCREEN_ALL_APPS -> allAppsReturnScreen
+                        SCREEN_FAVORITE_TEAMS -> {
+                            viewModel.clearTeamSearch()
+                            SCREEN_SPORTS_SETTINGS
+                        }
                         SCREEN_SPORTS_SETTINGS -> SCREEN_SETTINGS
                         else -> SCREEN_HOME
                     }
@@ -107,9 +112,29 @@ class MainActivity : ComponentActivity() {
 
                     SCREEN_SPORTS_SETTINGS -> SportsSettingsScreen(
                         configured = uiState.sportsApiConfigured,
+                        favoriteTeamCount = uiState.favoriteTeams.size,
                         onSaveKey = viewModel::setApiFootballKey,
                         onClearKey = { viewModel.setApiFootballKey("") },
+                        onOpenFavoriteTeams = {
+                            viewModel.clearTeamSearch()
+                            screen = SCREEN_FAVORITE_TEAMS
+                        },
                         onBack = { screen = SCREEN_SETTINGS },
+                    )
+
+                    SCREEN_FAVORITE_TEAMS -> FavoriteTeamsScreen(
+                        configured = uiState.sportsApiConfigured,
+                        selectedTeams = uiState.favoriteTeams,
+                        searchResults = uiState.teamSearchResults,
+                        searchLoading = uiState.teamSearchLoading,
+                        searchError = uiState.teamSearchError,
+                        onSearch = viewModel::searchTeams,
+                        onToggleTeam = viewModel::toggleFavoriteTeam,
+                        onClearSearch = viewModel::clearTeamSearch,
+                        onBack = {
+                            viewModel.clearTeamSearch()
+                            screen = SCREEN_SPORTS_SETTINGS
+                        },
                     )
 
                     else -> HomeScreen(
@@ -188,5 +213,6 @@ class MainActivity : ComponentActivity() {
         const val SCREEN_HIDDEN_APPS = "hidden_apps"
         const val SCREEN_SETTINGS = "settings"
         const val SCREEN_SPORTS_SETTINGS = "sports_settings"
+        const val SCREEN_FAVORITE_TEAMS = "favorite_teams"
     }
 }
