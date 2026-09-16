@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -44,8 +45,12 @@ data class LauncherPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
-    val apiFootballKey: String = "",
+    val geminiApiKey: String = "",
     val favoriteTeams: List<FavoriteTeam> = emptyList(),
+    val dailyMatchAttemptDate: String = "",
+    val dailyMatchCacheDate: String = "",
+    val dailyMatchCacheJson: String = "",
+    val dailyMatchCacheFetchedAtMillis: Long = 0L,
 )
 
 class LauncherPreferencesRepository(
@@ -140,10 +145,30 @@ class LauncherPreferencesRepository(
         }
     }
 
-    suspend fun setApiFootballKey(apiKey: String) {
+    suspend fun setGeminiApiKey(apiKey: String) {
         dataStore.edit { preferences ->
             preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
-            preferences[API_FOOTBALL_KEY] = apiKey.trim()
+            preferences[GEMINI_API_KEY] = apiKey.trim()
+        }
+    }
+
+    suspend fun markDailyMatchAttempt(date: String) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[DAILY_MATCH_ATTEMPT_DATE] = date
+        }
+    }
+
+    suspend fun saveDailyMatchCache(
+        date: String,
+        json: String,
+        fetchedAtMillis: Long,
+    ) {
+        dataStore.edit { preferences ->
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[DAILY_MATCH_CACHE_DATE] = date
+            preferences[DAILY_MATCH_CACHE_JSON] = json
+            preferences[DAILY_MATCH_CACHE_FETCHED_AT] = fetchedAtMillis
         }
     }
 
@@ -190,8 +215,12 @@ class LauncherPreferencesRepository(
         themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
-        apiFootballKey = preferences[API_FOOTBALL_KEY].orEmpty(),
+        geminiApiKey = preferences[GEMINI_API_KEY].orEmpty(),
         favoriteTeams = decodeFavoriteTeams(preferences[FAVORITE_TEAMS]),
+        dailyMatchAttemptDate = preferences[DAILY_MATCH_ATTEMPT_DATE].orEmpty(),
+        dailyMatchCacheDate = preferences[DAILY_MATCH_CACHE_DATE].orEmpty(),
+        dailyMatchCacheJson = preferences[DAILY_MATCH_CACHE_JSON].orEmpty(),
+        dailyMatchCacheFetchedAtMillis = preferences[DAILY_MATCH_CACHE_FETCHED_AT] ?: 0L,
     )
 
     private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
@@ -256,9 +285,13 @@ class LauncherPreferencesRepository(
         val THEME_MODE = stringPreferencesKey("theme_mode_v1")
         val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
         val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
-        val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
+        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key_v1")
         val FAVORITE_TEAMS = stringPreferencesKey("favorite_teams_v1")
+        val DAILY_MATCH_ATTEMPT_DATE = stringPreferencesKey("daily_match_attempt_date_v1")
+        val DAILY_MATCH_CACHE_DATE = stringPreferencesKey("daily_match_cache_date_v1")
+        val DAILY_MATCH_CACHE_JSON = stringPreferencesKey("daily_match_cache_json_v1")
+        val DAILY_MATCH_CACHE_FETCHED_AT = longPreferencesKey("daily_match_cache_fetched_at_v1")
     }
 }
 
-private const val CURRENT_SCHEMA_VERSION = 4
+private const val CURRENT_SCHEMA_VERSION = 5
