@@ -16,7 +16,9 @@ data class TodayMatch(
     val fixtureId: Long,
     val leagueName: String,
     val countryName: String,
+    val homeTeamId: Int,
     val homeTeam: String,
+    val awayTeamId: Int,
     val awayTeam: String,
     val kickoffEpochSeconds: Long,
     val statusShort: String,
@@ -31,6 +33,9 @@ data class TodayMatch(
     val isFinished: Boolean
         get() = statusShort in FINISHED_STATUS_CODES
 
+    fun involvesAny(teamIds: Set<Int>): Boolean =
+        homeTeamId in teamIds || awayTeamId in teamIds
+
     private companion object {
         val LIVE_STATUS_CODES = setOf("1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE")
         val FINISHED_STATUS_CODES = setOf("FT", "AET", "PEN")
@@ -42,6 +47,7 @@ class TodayMatchRepository {
         apiKey: String,
         zoneId: ZoneId = ZoneId.systemDefault(),
         date: LocalDate = LocalDate.now(zoneId),
+        favoriteTeamIds: Set<Int> = emptySet(),
     ): List<TodayMatch> = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "API-Football anahtarı ayarlanmamış." }
 
@@ -73,13 +79,16 @@ class TodayMatchRepository {
                 )
             }
 
-            parseResponse(body)
+            parseResponse(body, favoriteTeamIds)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun parseResponse(body: String): List<TodayMatch> {
+    private fun parseResponse(
+        body: String,
+        favoriteTeamIds: Set<Int>,
+    ): List<TodayMatch> {
         val root = JSONObject(body)
         val errors = root.opt("errors")
         if (errors is JSONObject && errors.length() > 0) {
@@ -104,9 +113,18 @@ class TodayMatchRepository {
 
                 val fixtureId = fixture.optLong("id", -1L)
                 val kickoff = fixture.optLong("timestamp", -1L)
+                val homeId = home?.optInt("id", -1) ?: -1
+                val awayId = away?.optInt("id", -1) ?: -1
                 val homeName = home?.optString("name").orEmpty()
                 val awayName = away?.optString("name").orEmpty()
-                if (fixtureId <= 0L || kickoff <= 0L || homeName.isBlank() || awayName.isBlank()) {
+                if (
+                    fixtureId <= 0L ||
+                    kickoff <= 0L ||
+                    homeId <= 0 ||
+                    awayId <= 0 ||
+                    homeName.isBlank() ||
+                    awayName.isBlank()
+                ) {
                     continue
                 }
 
@@ -115,7 +133,9 @@ class TodayMatchRepository {
                         fixtureId = fixtureId,
                         leagueName = league.optString("name").orEmpty(),
                         countryName = league.optString("country").orEmpty(),
+                        homeTeamId = homeId,
                         homeTeam = homeName,
+                        awayTeamId = awayId,
                         awayTeam = awayName,
                         kickoffEpochSeconds = kickoff,
                         statusShort = status?.optString("short").orEmpty(),
@@ -130,7 +150,8 @@ class TodayMatchRepository {
 
         return matches
             .sortedWith(
-                compareBy<TodayMatch>(::competitionPriority)
+                compareBy<TodayMatch> { if (it.involvesAny(favoriteTeamIds)) 0 else 1 }
+                    .thenBy(::competitionPriority)
                     .thenBy { it.kickoffEpochSeconds },
             )
             .take(MAX_HOME_MATCHES)
