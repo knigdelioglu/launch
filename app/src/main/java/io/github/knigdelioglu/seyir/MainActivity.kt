@@ -113,8 +113,8 @@ class MainActivity : ComponentActivity() {
                     SCREEN_SPORTS_SETTINGS -> SportsSettingsScreen(
                         configured = uiState.sportsApiConfigured,
                         favoriteTeamCount = uiState.favoriteTeams.size,
-                        onSaveKey = viewModel::setApiFootballKey,
-                        onClearKey = { viewModel.setApiFootballKey("") },
+                        onSaveKey = viewModel::setGeminiApiKey,
+                        onClearKey = { viewModel.setGeminiApiKey("") },
                         onOpenFavoriteTeams = {
                             viewModel.clearTeamSearch()
                             screen = SCREEN_FAVORITE_TEAMS
@@ -123,7 +123,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     SCREEN_FAVORITE_TEAMS -> FavoriteTeamsScreen(
-                        configured = uiState.sportsApiConfigured,
+                        configured = true,
                         selectedTeams = uiState.favoriteTeams,
                         searchResults = uiState.teamSearchResults,
                         searchLoading = uiState.teamSearchLoading,
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onOpenSettings = { screen = SCREEN_SETTINGS },
                         onRetry = viewModel::refresh,
-                        onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
+                        onRefreshMatches = viewModel::refreshTodayMatches,
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
                 }
