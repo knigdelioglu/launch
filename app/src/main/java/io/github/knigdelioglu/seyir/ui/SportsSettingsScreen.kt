@@ -77,7 +77,7 @@ fun SportsSettingsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Günün öne çıkan futbol maçlarını ana ekranda gösterir.",
+                text = "Günün öne çıkan futbol maçlarını Gemini + Google Search ile bir kez bulur.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
@@ -100,7 +100,7 @@ fun SportsSettingsScreen(
                     .padding(22.dp),
             ) {
                 Text(
-                    text = "API-Football",
+                    text = "Gemini API + Google Search",
                     fontSize = SeyirType.SectionTitle,
                     fontWeight = FontWeight.SemiBold,
                     color = SeyirColors.TextPrimary,
@@ -110,7 +110,7 @@ fun SportsSettingsScreen(
                     text = if (configured) {
                         "Bağlı • anahtar yalnız bu cihazda saklanıyor"
                     } else {
-                        "Bağlı değil • ücretsiz API anahtarı gerekiyor"
+                        "Bağlı değil • Gemini API anahtarı gerekiyor"
                     },
                     fontSize = SeyirType.Meta,
                     color = if (configured) SeyirColors.Accent else SeyirColors.TextSecondary,
@@ -123,8 +123,8 @@ fun SportsSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    label = { MaterialText("API anahtarı") },
-                    placeholder = { MaterialText("x-apisports-key") },
+                    label = { MaterialText("Gemini API anahtarı") },
+                    placeholder = { MaterialText("AIza…") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = SeyirColors.TextPrimary,
                         unfocusedTextColor = SeyirColors.TextPrimary,
@@ -159,18 +159,18 @@ fun SportsSettingsScreen(
                 Spacer(modifier = Modifier.height(SeyirSpacing.Item))
                 SportsAction(
                     text = if (favoriteTeamCount == 0) {
-                        "Takımlarım • takım seç"
+                        "Takımlarım • takım ekle"
                     } else {
                         "Takımlarım • $favoriteTeamCount seçili"
                     },
-                    enabled = configured,
+                    enabled = true,
                     onClick = onOpenFavoriteTeams,
                 )
             }
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Takımlarım seçimi, ilgili maçları Bugün ne var satırının başına taşır. Seyir anahtarı GitHub reposuna veya APK içine gömmez; maç verisi 30 dakika önbelleğe alınır.",
+                text = "Seyir bir takvim gününde en fazla 1 otomatik Gemini isteği yapar. Sonuç tarih, veri ve alınma zamanı ile cihazda kalıcı saklanır; uygulamayı veya TV'yi yeniden açmak aynı gün yeni istek oluşturmaz. Takımlarım değişiklikleri mevcut günlük listede eşleşiyorsa anında yeniden sıralanır, yeni Gemini sorgusu ertesi gün yapılır.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )
