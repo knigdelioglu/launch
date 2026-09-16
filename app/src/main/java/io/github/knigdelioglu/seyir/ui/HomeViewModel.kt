@@ -14,6 +14,7 @@ import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,6 +59,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var refreshJob: Job? = null
     private var matchesJob: Job? = null
     private var teamSearchJob: Job? = null
+    private var favoriteTeamsRefreshJob: Job? = null
     private var discoveredApps: List<InstalledApp> = emptyList()
     private var latestPreferences = LauncherPreferences()
     private var lastMatchRefreshMillis = 0L
@@ -350,6 +352,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         lastMatchRefreshDate = null
     }
 
+    private fun scheduleFavoriteTeamRefresh() {
+        favoriteTeamsRefreshJob?.cancel()
+        favoriteTeamsRefreshJob = viewModelScope.launch {
+            delay(FAVORITE_TEAM_REFRESH_DEBOUNCE_MS)
+            matchesJob?.cancel()
+            invalidateMatchCache()
+            refreshTodayMatches(force = true)
+        }
+    }
+
     private fun observePreferences() {
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
@@ -366,13 +378,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
 
-                if (apiKeyChanged || favoriteTeamsChanged) {
-                    matchesJob?.cancel()
-                    invalidateMatchCache()
-                }
+                when {
+                    apiKeyChanged -> {
+                        favoriteTeamsRefreshJob?.cancel()
+                        matchesJob?.cancel()
+                        invalidateMatchCache()
+                        refreshTodayMatches(force = true)
+                    }
 
-                if (preferences.apiFootballKey.isNotBlank()) {
-                    refreshTodayMatches(force = apiKeyChanged || favoriteTeamsChanged)
+                    favoriteTeamsChanged && preferences.apiFootballKey.isNotBlank() -> {
+                        scheduleFavoriteTeamRefresh()
+                    }
+
+                    preferences.apiFootballKey.isNotBlank() -> {
+                        refreshTodayMatches()
+                    }
                 }
             }
         }
@@ -417,5 +437,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         const val DEFAULT_FAVORITE_COUNT = 7
         const val MATCH_CACHE_MS = 30L * 60L * 1_000L
         const val TEAM_SEARCH_MIN_LENGTH = 3
+        const val FAVORITE_TEAM_REFRESH_DEBOUNCE_MS = 700L
     }
 }
