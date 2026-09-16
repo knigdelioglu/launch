@@ -9,12 +9,10 @@ import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.data.InstalledAppRepository
 import io.github.knigdelioglu.seyir.data.LauncherPreferences
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesRepository
-import io.github.knigdelioglu.seyir.data.TeamSearchRepository
 import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 
 data class HomeUiState(
@@ -40,6 +39,7 @@ data class HomeUiState(
     val todayMatches: List<TodayMatch> = emptyList(),
     val matchesLoading: Boolean = false,
     val matchesError: String? = null,
+    val matchesFetchedAtMillis: Long = 0L,
     val teamSearchResults: List<FavoriteTeam> = emptyList(),
     val teamSearchLoading: Boolean = false,
     val teamSearchError: String? = null,
@@ -51,19 +51,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = InstalledAppRepository(application.applicationContext)
     private val preferencesRepository = LauncherPreferencesRepository(application.applicationContext)
     private val matchRepository = TodayMatchRepository()
-    private val teamSearchRepository = TeamSearchRepository()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var refreshJob: Job? = null
     private var matchesJob: Job? = null
-    private var teamSearchJob: Job? = null
-    private var favoriteTeamsRefreshJob: Job? = null
     private var discoveredApps: List<InstalledApp> = emptyList()
     private var latestPreferences = LauncherPreferences()
-    private var lastMatchRefreshMillis = 0L
-    private var lastMatchRefreshDate: LocalDate? = null
 
     init {
         observePreferences()
@@ -109,8 +104,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshTodayMatches(force: Boolean = false) {
-        val apiKey = latestPreferences.apiFootballKey.trim()
+    fun refreshTodayMatches() {
+        val apiKey = latestPreferences.geminiApiKey.trim()
         if (apiKey.isBlank()) {
             _uiState.update {
                 it.copy(
@@ -118,6 +113,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     todayMatches = emptyList(),
                     matchesLoading = false,
                     matchesError = null,
+                    matchesFetchedAtMillis = 0L,
                 )
             }
             return
@@ -126,42 +122,75 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         val zoneId = ZoneId.systemDefault()
         val today = LocalDate.now(zoneId)
-        val now = System.currentTimeMillis()
-        val cacheFresh = lastMatchRefreshDate == today &&
-            now - lastMatchRefreshMillis < MATCH_CACHE_MS
-        if (!force && cacheFresh) return
+        val todayValue = today.toString()
+        val favoriteTeamNames = latestPreferences.favoriteTeams
+            .mapTo(linkedSetOf()) { it.name }
+
+        if (
+            latestPreferences.dailyMatchCacheDate == todayValue &&
+            latestPreferences.dailyMatchCacheJson.isNotBlank()
+        ) {
+            showCachedMatches(
+                preferences = latestPreferences,
+                date = today,
+                zoneId = zoneId,
+                favoriteTeamNames = favoriteTeamNames,
+            )
+            return
+        }
+
+        if (latestPreferences.dailyMatchAttemptDate == todayValue) {
+            _uiState.update {
+                it.copy(
+                    matchesLoading = false,
+                    matchesError = "Bugünkü Gemini sorgusu daha önce denendi. Yarın otomatik olarak yeniden denenecek.",
+                )
+            }
+            return
+        }
 
         matchesJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     sportsApiConfigured = true,
-                    matchesLoading = it.todayMatches.isEmpty(),
+                    matchesLoading = true,
                     matchesError = null,
                 )
             }
 
             try {
-                val matches = matchRepository.loadTodayMatches(
+                // Attempt date is persisted before the network call so process restarts cannot
+                // accidentally create multiple Gemini/Search charges on the same calendar day.
+                preferencesRepository.markDailyMatchAttempt(todayValue)
+
+                val result = matchRepository.loadTodayMatches(
                     apiKey = apiKey,
                     zoneId = zoneId,
                     date = today,
-                    favoriteTeamIds = latestPreferences.favoriteTeams
-                        .mapTo(hashSetOf()) { it.id },
+                    favoriteTeamNames = favoriteTeamNames,
                 )
-                lastMatchRefreshMillis = System.currentTimeMillis()
-                lastMatchRefreshDate = today
+                val fetchedAt = System.currentTimeMillis()
+                preferencesRepository.saveDailyMatchCache(
+                    date = todayValue,
+                    json = result.rawJson,
+                    fetchedAtMillis = fetchedAt,
+                )
+
                 _uiState.update {
                     it.copy(
-                        todayMatches = matches,
+                        todayMatches = result.matches,
                         matchesLoading = false,
                         matchesError = null,
+                        matchesFetchedAtMillis = fetchedAt,
                     )
                 }
             } catch (error: Throwable) {
                 _uiState.update {
                     it.copy(
+                        todayMatches = emptyList(),
                         matchesLoading = false,
-                        matchesError = error.message ?: "Bugünün maçları alınamadı.",
+                        matchesError = error.message
+                            ?: "Bugünün maçları Gemini'den alınamadı. Yarın yeniden denenecek.",
                     )
                 }
             }
@@ -169,65 +198,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun searchTeams(query: String) {
-        val apiKey = latestPreferences.apiFootballKey.trim()
-        if (apiKey.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    teamSearchResults = emptyList(),
-                    teamSearchLoading = false,
-                    teamSearchError = "Önce API-Football anahtarını kaydedin.",
-                )
-            }
-            return
-        }
-
         val normalizedQuery = query.trim()
         if (normalizedQuery.length < TEAM_SEARCH_MIN_LENGTH) {
             _uiState.update {
                 it.copy(
                     teamSearchResults = emptyList(),
                     teamSearchLoading = false,
-                    teamSearchError = "Takım aramak için en az $TEAM_SEARCH_MIN_LENGTH karakter girin.",
+                    teamSearchError = "Takım eklemek için en az $TEAM_SEARCH_MIN_LENGTH karakter girin.",
                 )
             }
             return
         }
 
-        teamSearchJob?.cancel()
-        teamSearchJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    teamSearchLoading = true,
-                    teamSearchError = null,
-                )
-            }
-
-            try {
-                val results = teamSearchRepository.searchTeams(
-                    apiKey = apiKey,
-                    query = normalizedQuery,
-                )
-                _uiState.update {
-                    it.copy(
-                        teamSearchResults = results,
-                        teamSearchLoading = false,
-                        teamSearchError = null,
-                    )
-                }
-            } catch (error: Throwable) {
-                _uiState.update {
-                    it.copy(
-                        teamSearchResults = emptyList(),
-                        teamSearchLoading = false,
-                        teamSearchError = error.message ?: "Takım araması başarısız.",
-                    )
-                }
-            }
+        val team = FavoriteTeam(
+            id = stableTeamId(normalizedQuery),
+            name = normalizedQuery,
+            country = "",
+        )
+        _uiState.update {
+            it.copy(
+                teamSearchResults = listOf(team),
+                teamSearchLoading = false,
+                teamSearchError = null,
+            )
         }
     }
 
     fun clearTeamSearch() {
-        teamSearchJob?.cancel()
         _uiState.update {
             it.copy(
                 teamSearchResults = emptyList(),
@@ -324,16 +321,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setApiFootballKey(apiKey: String) {
+    fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
-            preferencesRepository.setApiFootballKey(apiKey)
-            invalidateMatchCache()
+            preferencesRepository.setGeminiApiKey(apiKey)
             if (apiKey.isBlank()) clearTeamSearch()
             showMessage(
                 if (apiKey.isBlank()) {
                     "Bugün ne var devre dışı bırakıldı."
                 } else {
-                    "API-Football anahtarı kaydedildi."
+                    "Gemini API anahtarı kaydedildi."
                 },
             )
         }
@@ -347,18 +343,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(transientMessage = message) }
     }
 
-    private fun invalidateMatchCache() {
-        lastMatchRefreshMillis = 0L
-        lastMatchRefreshDate = null
-    }
-
-    private fun scheduleFavoriteTeamRefresh() {
-        favoriteTeamsRefreshJob?.cancel()
-        favoriteTeamsRefreshJob = viewModelScope.launch {
-            delay(FAVORITE_TEAM_REFRESH_DEBOUNCE_MS)
-            matchesJob?.cancel()
-            invalidateMatchCache()
-            refreshTodayMatches(force = true)
+    private fun showCachedMatches(
+        preferences: LauncherPreferences,
+        date: LocalDate,
+        zoneId: ZoneId,
+        favoriteTeamNames: Set<String>,
+    ) {
+        try {
+            val matches = matchRepository.parseCachedMatches(
+                rawJson = preferences.dailyMatchCacheJson,
+                date = date,
+                zoneId = zoneId,
+                favoriteTeamNames = favoriteTeamNames,
+            )
+            _uiState.update {
+                it.copy(
+                    todayMatches = matches,
+                    matchesLoading = false,
+                    matchesError = null,
+                    matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
+                )
+            }
+        } catch (error: Throwable) {
+            _uiState.update {
+                it.copy(
+                    todayMatches = emptyList(),
+                    matchesLoading = false,
+                    matchesError = "Bugünkü yerel maç önbelleği okunamadı; otomatik yeni sorgu yapılmadı.",
+                )
+            }
         }
     }
 
@@ -366,8 +379,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
                 val previousPreferences = latestPreferences
-                val apiKeyChanged = preferences.apiFootballKey != previousPreferences.apiFootballKey
+                val apiKeyChanged = preferences.geminiApiKey != previousPreferences.geminiApiKey
                 val favoriteTeamsChanged = preferences.favoriteTeams != previousPreferences.favoriteTeams
+                val cacheChanged =
+                    preferences.dailyMatchCacheDate != previousPreferences.dailyMatchCacheDate ||
+                        preferences.dailyMatchCacheJson != previousPreferences.dailyMatchCacheJson
                 latestPreferences = preferences
 
                 _uiState.update { current ->
@@ -378,21 +394,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
 
-                when {
-                    apiKeyChanged -> {
-                        favoriteTeamsRefreshJob?.cancel()
-                        matchesJob?.cancel()
-                        invalidateMatchCache()
-                        refreshTodayMatches(force = true)
-                    }
+                val today = LocalDate.now(ZoneId.systemDefault())
+                val favoriteNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
+                if (
+                    (favoriteTeamsChanged || cacheChanged) &&
+                    preferences.dailyMatchCacheDate == today.toString() &&
+                    preferences.dailyMatchCacheJson.isNotBlank()
+                ) {
+                    showCachedMatches(
+                        preferences = preferences,
+                        date = today,
+                        zoneId = ZoneId.systemDefault(),
+                        favoriteTeamNames = favoriteNames,
+                    )
+                }
 
-                    favoriteTeamsChanged && preferences.apiFootballKey.isNotBlank() -> {
-                        scheduleFavoriteTeamRefresh()
-                    }
-
-                    preferences.apiFootballKey.isNotBlank() -> {
-                        refreshTodayMatches()
-                    }
+                if (apiKeyChanged || preferences.geminiApiKey.isNotBlank()) {
+                    refreshTodayMatches()
                 }
             }
         }
@@ -427,16 +445,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             themeMode = preferences.themeMode,
             accentMode = preferences.accentMode,
             reducedMotion = preferences.reducedMotion,
-            sportsApiConfigured = preferences.apiFootballKey.isNotBlank(),
+            sportsApiConfigured = preferences.geminiApiKey.isNotBlank(),
             favoriteTeams = preferences.favoriteTeams,
+            matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
             errorMessage = null,
         )
     }
 
+    private fun stableTeamId(name: String): Int {
+        val value = name.trim().lowercase(Locale.ROOT).hashCode() and Int.MAX_VALUE
+        return if (value == 0) 1 else value
+    }
+
     private companion object {
         const val DEFAULT_FAVORITE_COUNT = 7
-        const val MATCH_CACHE_MS = 30L * 60L * 1_000L
         const val TEAM_SEARCH_MIN_LENGTH = 3
-        const val FAVORITE_TEAM_REFRESH_DEBOUNCE_MS = 700L
     }
 }
