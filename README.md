@@ -14,6 +14,7 @@ Amaç, Google TV'nin işlevselliğini Apple TV'nin görsel sakinliğiyle birleş
 - Favori uygulamalar, tüm uygulamalar ve son kullanılanlar
 - Uygulama gizleme ve sıralama
 - İsteğe bağlı **Bugün ne var** satırıyla günün öne çıkan futbol maçlarını göstermek
+- **Takımlarım** ile kullanıcının seçtiği takımların maçlarını önceliklendirmek
 - Minimal ve Cinematic görünüm modları
 - Yerel ayarlar; zorunlu hesap ve bulut bağımlılığı olmaması
 - Reklam, sponsorlu öneri ve takip mekanizması içermemesi
@@ -62,8 +63,18 @@ Veri kaynağı olarak [API-Football](https://www.api-football.com/) kullanılır
 - Fikstür cihazın saat dilimiyle istenir.
 - Sonuçlar 30 dakika bellek önbelleğinde tutulur; arka planda sürekli polling yapılmaz.
 - Home ekranında en fazla 12 maç gösterilir.
-- Öncelik sırası: Süper Lig / Türkiye Kupası / UEFA kupaları → diğer Türkiye ligleri → büyük Avrupa ligleri → diğer karşılaşmalar.
+- Öncelik sırası: Takımlarım → Süper Lig / Türkiye Kupası / UEFA kupaları → diğer Türkiye ligleri → büyük Avrupa ligleri → diğer karşılaşmalar.
 - Maç başlamadıysa saat, canlıysa dakika + skor, bittiyse maç sonu skoru gösterilir.
+
+### Takımlarım
+
+**Ayarlar → Bugün ne var → Takımlarım** ekranından takım adına göre arama yapılabilir.
+
+- Arama kullanıcı `Ara` düğmesine bastığında çalışır; her klavye tuşunda API isteği yapılmaz.
+- Takımlar API-Football team ID'siyle saklanır; yalnız isim eşleştirmesine güvenilmez.
+- Seçimler DataStore'da cihazda kalıcıdır.
+- Seçilen takımın o gün maçı varsa karşılaşma, 12 kartlık günlük listenin önüne taşınır.
+- Art arda takım ekleme/çıkarma işlemleri fixture yenilemesinde kısa debounce ile birleştirilir; gereksiz API tüketimi azaltılır.
 
 API-Football ücretsiz planı kişisel kullanım ve geliştirme için yeterli bir başlangıç noktasıdır; kota ve kullanım koşulları sağlayıcı tarafından değiştirilebilir.
 
@@ -118,6 +129,7 @@ Kesin modül yapısı geliştirme sırasında ihtiyaçlara göre sade tutulur.
 - Reduced Motion
 - Kalıcı yerel ayarlar
 - Opsiyonel **Bugün ne var** futbol fikstürü
+- **Takımlarım** takım arama, kalıcı seçim ve günlük maç önceliklendirmesi
 - CI üzerinden debug APK artifact üretimi
 
 AirPlay ve Ambient Mode sonraki fazlardadır.
