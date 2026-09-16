@@ -30,6 +30,12 @@ enum class AccentMode {
     EMERALD,
 }
 
+data class FavoriteTeam(
+    val id: Int,
+    val name: String,
+    val country: String,
+)
+
 data class LauncherPreferences(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val favoritesInitialized: Boolean = false,
@@ -39,6 +45,7 @@ data class LauncherPreferences(
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
     val apiFootballKey: String = "",
+    val favoriteTeams: List<FavoriteTeam> = emptyList(),
 )
 
 class LauncherPreferencesRepository(
@@ -140,6 +147,28 @@ class LauncherPreferencesRepository(
         }
     }
 
+    suspend fun toggleFavoriteTeam(team: FavoriteTeam): Boolean {
+        var selectedAfterUpdate = false
+
+        dataStore.edit { preferences ->
+            val teams = decodeFavoriteTeams(preferences[FAVORITE_TEAMS]).toMutableList()
+            val existingIndex = teams.indexOfFirst { it.id == team.id }
+
+            selectedAfterUpdate = if (existingIndex >= 0) {
+                teams.removeAt(existingIndex)
+                false
+            } else {
+                teams.add(team.copy(name = team.name.trim(), country = team.country.trim()))
+                true
+            }
+
+            preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
+            preferences[FAVORITE_TEAMS] = encodeFavoriteTeams(teams)
+        }
+
+        return selectedAfterUpdate
+    }
+
     suspend fun cleanupUnavailablePackages(availablePackages: Set<String>) {
         dataStore.edit { preferences ->
             val favorites = decodeOrderedPackages(preferences[FAVORITE_PACKAGES])
@@ -162,6 +191,7 @@ class LauncherPreferencesRepository(
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
         apiFootballKey = preferences[API_FOOTBALL_KEY].orEmpty(),
+        favoriteTeams = decodeFavoriteTeams(preferences[FAVORITE_TEAMS]),
     )
 
     private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
@@ -185,9 +215,39 @@ class LauncherPreferencesRepository(
         .distinct()
         .toList()
 
+    private fun encodeFavoriteTeams(teams: List<FavoriteTeam>): String = teams
+        .asSequence()
+        .distinctBy { it.id }
+        .joinToString(PACKAGE_SEPARATOR) { team ->
+            listOf(
+                team.id.toString(),
+                sanitizeTeamField(team.name),
+                sanitizeTeamField(team.country),
+            ).joinToString(TEAM_FIELD_SEPARATOR)
+        }
+
+    private fun decodeFavoriteTeams(encoded: String?): List<FavoriteTeam> = encoded
+        .orEmpty()
+        .split(PACKAGE_SEPARATOR)
+        .mapNotNull { record ->
+            val fields = record.split(TEAM_FIELD_SEPARATOR)
+            val id = fields.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val name = fields.getOrNull(1).orEmpty().trim()
+            val country = fields.getOrNull(2).orEmpty().trim()
+            if (name.isBlank()) return@mapNotNull null
+            FavoriteTeam(id = id, name = name, country = country)
+        }
+        .distinctBy { it.id }
+
+    private fun sanitizeTeamField(value: String): String = value
+        .replace(PACKAGE_SEPARATOR, " ")
+        .replace(TEAM_FIELD_SEPARATOR, " ")
+        .trim()
+
     private companion object {
         const val DEFAULT_FAVORITE_COUNT = 7
         const val PACKAGE_SEPARATOR = "\n"
+        const val TEAM_FIELD_SEPARATOR = "\u001F"
 
         val SCHEMA_VERSION = intPreferencesKey("schema_version")
         val FAVORITES_INITIALIZED = booleanPreferencesKey("favorites_initialized")
@@ -197,7 +257,8 @@ class LauncherPreferencesRepository(
         val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
         val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
         val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
+        val FAVORITE_TEAMS = stringPreferencesKey("favorite_teams_v1")
     }
 }
 
-private const val CURRENT_SCHEMA_VERSION = 3
+private const val CURRENT_SCHEMA_VERSION = 4
