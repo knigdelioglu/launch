@@ -85,22 +85,10 @@ fun AllAppsScreen(
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
     var restoreRequest by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(apps, hiddenAppCount, focusTarget) {
+    // focusTarget is history only; normal D-pad navigation must not restart focus restoration.
+    LaunchedEffect(apps, hiddenAppCount, restoreRequest) {
         if (apps.isEmpty() && hiddenAppCount == 0) return@LaunchedEffect
-        delay(120)
-        requestAllAppsFocus(
-            apps = apps,
-            focusTarget = focusTarget,
-            appFocusRequesters = appFocusRequesters,
-            hiddenAppCount = hiddenAppCount,
-            hiddenAppsFocusRequester = hiddenAppsFocusRequester,
-            gridState = gridState,
-        )
-    }
-
-    LaunchedEffect(restoreRequest) {
-        if (restoreRequest == 0) return@LaunchedEffect
-        delay(90)
+        delay(if (restoreRequest > 0) 90 else 120)
         requestAllAppsFocus(
             apps = apps,
             focusTarget = focusTarget,

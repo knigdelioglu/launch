@@ -95,7 +95,8 @@ fun HomeScreen(
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
     var restoreRequest by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(homeApps, uiState.apps, focusTarget, restoreRequest) {
+    // focusTarget is history only; normal D-pad focus changes must not trigger a forced scroll.
+    LaunchedEffect(homeApps, uiState.apps, restoreRequest) {
         if (uiState.apps.isEmpty()) return@LaunchedEffect
         delay(if (restoreRequest > 0) 90 else 140)
         requestHomeFocus(

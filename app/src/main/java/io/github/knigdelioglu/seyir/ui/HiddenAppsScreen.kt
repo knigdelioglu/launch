@@ -64,7 +64,8 @@ fun HiddenAppsScreen(
     val gridState = rememberLazyGridState()
     var focusTarget by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(apps, focusTarget) {
+    // focusTarget records the fallback target; D-pad focus changes must not force another scroll.
+    LaunchedEffect(apps) {
         delay(100)
 
         if (apps.isEmpty()) {
