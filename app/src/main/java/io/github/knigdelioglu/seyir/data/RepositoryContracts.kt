@@ -5,6 +5,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 interface InstalledAppSource {
+    /**
+     * Returns the last in-process launcher snapshot when one exists. This is intentionally
+     * synchronous so a recreated launcher can paint its cards before the background package scan.
+     */
+    fun cachedLaunchableApps(): List<InstalledApp> = emptyList()
+
     suspend fun loadLaunchableApps(): List<InstalledApp>
 
     fun launch(packageName: String): Boolean
