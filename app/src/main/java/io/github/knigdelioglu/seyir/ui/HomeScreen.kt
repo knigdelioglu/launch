@@ -138,7 +138,6 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
                 .padding(
                     horizontal = SeyirSpacing.ScreenHorizontal,
                     vertical = SeyirSpacing.ScreenVertical,
@@ -151,108 +150,114 @@ fun HomeScreen(
                 onOpenSettings = onOpenSettings,
             )
 
-            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState),
+            ) {
+                Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
-            Text(
-                text = greetingFor(LocalTime.now()),
-                fontSize = SeyirType.Hero,
-                fontWeight = FontWeight.SemiBold,
-                color = SeyirColors.TextPrimary,
-            )
-            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
-            Text(
-                text = "İzlemek istediğiniz şeye doğrudan geçin.",
-                fontSize = SeyirType.Subtitle,
-                color = SeyirColors.TextSecondary,
-            )
+                Text(
+                    text = greetingFor(LocalTime.now()),
+                    fontSize = SeyirType.Hero,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SeyirColors.TextPrimary,
+                )
+                Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
+                Text(
+                    text = "İzlemek istediğiniz şeye doğrudan geçin.",
+                    fontSize = SeyirType.Subtitle,
+                    color = SeyirColors.TextSecondary,
+                )
 
-            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+                Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
-            when {
-                uiState.apps.isNotEmpty() -> {
-                    SectionHeader(
-                        title = "Favoriler",
-                        meta = "${homeApps.size} sabitlenmiş",
-                    )
-                    Spacer(modifier = Modifier.height(SeyirSpacing.Item))
+                when {
+                    uiState.apps.isNotEmpty() -> {
+                        SectionHeader(
+                            title = "Favoriler",
+                            meta = "${homeApps.size} sabitlenmiş",
+                        )
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
-                    LazyRow(
-                        state = favoritesListState,
-                        horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
-                    ) {
-                        itemsIndexed(
-                            items = homeApps,
-                            key = { _, app -> app.packageName },
-                        ) { _, app ->
-                            AppCard(
-                                app = app,
-                                onClick = { onAppClick(app) },
-                                onLongClick = { contextApp = app },
-                                onFocused = { onFocusTargetChanged(app.packageName) },
-                                modifier = Modifier.focusRequester(
-                                    favoriteFocusRequesters.getValue(app.packageName),
-                                ),
-                            )
+                        LazyRow(
+                            state = favoritesListState,
+                            horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
+                        ) {
+                            itemsIndexed(
+                                items = homeApps,
+                                key = { _, app -> app.packageName },
+                            ) { _, app ->
+                                AppCard(
+                                    app = app,
+                                    onClick = { onAppClick(app) },
+                                    onLongClick = { contextApp = app },
+                                    onFocused = { onFocusTargetChanged(app.packageName) },
+                                    modifier = Modifier.focusRequester(
+                                        favoriteFocusRequesters.getValue(app.packageName),
+                                    ),
+                                )
+                            }
+
+                            item(key = HomeFocusKey.ALL_APPS) {
+                                ActionCard(
+                                    label = "Tüm Uygulamalar",
+                                    symbol = "▦",
+                                    onClick = onOpenAllApps,
+                                    onFocused = { onFocusTargetChanged(HomeFocusKey.ALL_APPS) },
+                                    modifier = Modifier.focusRequester(allAppsFocusRequester),
+                                )
+                            }
                         }
 
-                        item(key = HomeFocusKey.ALL_APPS) {
-                            ActionCard(
-                                label = "Tüm Uygulamalar",
-                                symbol = "▦",
-                                onClick = onOpenAllApps,
-                                onFocused = { onFocusTargetChanged(HomeFocusKey.ALL_APPS) },
-                                modifier = Modifier.focusRequester(allAppsFocusRequester),
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
+                        Text(
+                            text = if (homeApps.isEmpty()) {
+                                "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
+                            } else {
+                                "Uzun OK ile favoriyi taşıyabilir veya kaldırabilirsiniz."
+                            },
+                            fontSize = SeyirType.Meta,
+                            color = SeyirColors.TextTertiary,
+                        )
+
+                        if (uiState.sportsApiConfigured) {
+                            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+                            TodayMatchesSection(
+                                matches = uiState.todayMatches,
+                                loading = uiState.matchesLoading,
+                                error = uiState.matchesError,
+                                onRefresh = onRefreshMatches,
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
+                    uiState.isLoading -> LoadingState()
+                    uiState.errorMessage != null -> ErrorState(
+                        message = uiState.errorMessage,
+                        onRetry = onRetry,
+                    )
+                    else -> EmptyState()
+                }
+
+                Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = if (homeApps.isEmpty()) {
-                            "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
-                        } else {
-                            "Uzun OK ile favoriyi taşıyabilir veya kaldırabilirsiniz."
-                        },
+                        text = "Yerel  •  Reklamsız  •  Hesapsız",
                         fontSize = SeyirType.Meta,
                         color = SeyirColors.TextTertiary,
                     )
-
-                    if (uiState.sportsApiConfigured) {
-                        Spacer(modifier = Modifier.height(SeyirSpacing.Section))
-                        TodayMatchesSection(
-                            matches = uiState.todayMatches,
-                            loading = uiState.matchesLoading,
-                            error = uiState.matchesError,
-                            onRefresh = onRefreshMatches,
-                        )
-                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "${uiState.apps.size} uygulama",
+                        fontSize = SeyirType.Meta,
+                        color = SeyirColors.TextTertiary,
+                    )
                 }
-
-                uiState.isLoading -> LoadingState()
-                uiState.errorMessage != null -> ErrorState(
-                    message = uiState.errorMessage,
-                    onRetry = onRetry,
-                )
-                else -> EmptyState()
-            }
-
-            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Yerel  •  Reklamsız  •  Hesapsız",
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextTertiary,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "${uiState.apps.size} uygulama",
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextTertiary,
-                )
             }
         }
 
