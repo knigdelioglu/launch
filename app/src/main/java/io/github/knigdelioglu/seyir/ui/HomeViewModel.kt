@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.knigdelioglu.seyir.data.AccentMode
 import io.github.knigdelioglu.seyir.data.FavoriteTeam
+import io.github.knigdelioglu.seyir.data.FootballApiException
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.data.InstalledAppRepository
 import io.github.knigdelioglu.seyir.data.InstalledAppSource
@@ -15,9 +16,8 @@ import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import io.github.knigdelioglu.seyir.data.TodayMatchSource
-import io.github.knigdelioglu.seyir.data.FootballApiException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
-
 
 data class HomeUiState(
     val isLoading: Boolean = true,
@@ -64,15 +63,25 @@ class HomeViewModel(
         matchRepository = TodayMatchRepository(),
     )
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
     private var refreshJob: Job? = null
     private var matchesJob: Job? = null
-    private var discoveredApps: List<InstalledApp> = emptyList()
+    private var discoveredApps: List<InstalledApp> = appRepository.cachedLaunchableApps()
     private var latestPreferences = LauncherPreferences()
+    private var lastAppRefreshCompletedAtMillis: Long = 0L
+
+    private val _uiState = MutableStateFlow(
+        HomeUiState(isLoading = discoveredApps.isEmpty()),
+    )
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
+        if (discoveredApps.isNotEmpty()) {
+            _uiState.value = renderPreferences(
+                current = _uiState.value,
+                preferences = latestPreferences,
+                isLoading = false,
+            )
+        }
         observePreferences()
         refresh()
     }
@@ -98,6 +107,7 @@ class HomeViewModel(
                     apps.map { it.packageName },
                 )
 
+                lastAppRefreshCompletedAtMillis = System.currentTimeMillis()
                 _uiState.update { current ->
                     renderPreferences(
                         current = current,
@@ -115,6 +125,18 @@ class HomeViewModel(
                     )
                 }
             }
+        }
+    }
+
+    fun refreshOnResume(nowMillis: Long = System.currentTimeMillis()) {
+        if (
+            shouldRefreshAppsOnResume(
+                hasCachedApps = discoveredApps.isNotEmpty(),
+                lastRefreshCompletedAtMillis = lastAppRefreshCompletedAtMillis,
+                nowMillis = nowMillis,
+            )
+        ) {
+            refresh()
         }
     }
 
