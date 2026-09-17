@@ -304,6 +304,22 @@ private fun TodayMatchesSection(
     error: String?,
     onRefresh: () -> Unit,
 ) {
+    var nowEpochSeconds by remember { mutableStateOf(System.currentTimeMillis() / 1_000L) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowEpochSeconds = System.currentTimeMillis() / 1_000L
+            delay(30_000)
+        }
+    }
+
+    val visibleMatches = remember(matches, nowEpochSeconds) {
+        selectCurrentAndUpcomingMatches(
+            matches = matches,
+            nowEpochSeconds = nowEpochSeconds,
+        )
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -319,8 +335,8 @@ private fun TodayMatchesSection(
             text = when {
                 loading -> "yükleniyor"
                 error != null -> "veri alınamadı"
-                matches.isEmpty() -> "bugün maç yok"
-                else -> "${matches.size} maç • Türkiye saati"
+                visibleMatches.isEmpty() -> "kalan maç yok"
+                else -> "${visibleMatches.size} maç • Türkiye saati"
             },
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextTertiary,
@@ -332,20 +348,20 @@ private fun TodayMatchesSection(
     Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
 
     when {
-        loading && matches.isEmpty() -> Text(
+        loading && visibleMatches.isEmpty() -> Text(
             text = "Maçlar hazırlanıyor…",
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
         )
 
-        error != null && matches.isEmpty() -> Text(
+        error != null && visibleMatches.isEmpty() -> Text(
             text = error,
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
         )
 
-        matches.isEmpty() -> Text(
-            text = "Bugün gösterilecek maç bulunamadı.",
+        visibleMatches.isEmpty() -> Text(
+            text = "Şu anda oynanan veya daha sonra başlayacak maç bulunamadı.",
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
         )
@@ -355,7 +371,7 @@ private fun TodayMatchesSection(
             contentPadding = PaddingValues(vertical = 4.dp),
         ) {
             items(
-                items = matches,
+                items = visibleMatches,
                 key = { it.fixtureId },
             ) { match ->
                 TodayMatchCard(match)
@@ -366,11 +382,18 @@ private fun TodayMatchesSection(
 
 @Composable
 private fun TodayMatchCard(match: TodayMatch) {
+    var focused by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .width(214.dp)
+            .tvFocusScale(focused, "today-match-card-scale")
             .clip(RoundedCornerShape(SeyirRadius.Action))
-            .background(SeyirColors.SurfaceSoft)
+            .background(
+                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
             .padding(horizontal = 15.dp, vertical = 11.dp),
     ) {
         Text(
@@ -402,7 +425,7 @@ private fun TodayMatchCard(match: TodayMatch) {
             text = formatMatchScheduleText(match),
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = SeyirColors.TextSecondary,
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
         )
     }
 }
