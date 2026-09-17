@@ -2,7 +2,6 @@ package io.github.knigdelioglu.seyir.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -10,7 +9,6 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.text.Normalizer
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.util.Locale
 
@@ -50,8 +48,8 @@ data class DailyMatchResult(
 class TodayMatchRepository {
     suspend fun loadTodayMatches(
         apiKey: String,
-        zoneId: ZoneId = ZoneId.systemDefault(),
-        date: LocalDate = LocalDate.now(zoneId),
+        zoneId: ZoneId = TURKEY_TIME_ZONE,
+        date: LocalDate = LocalDate.now(TURKEY_TIME_ZONE),
         favoriteTeamNames: Set<String> = emptySet(),
     ): DailyMatchResult = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "API-Football anahtarı ayarlanmamış." }
@@ -107,8 +105,8 @@ class TodayMatchRepository {
 
     fun parseCachedMatches(
         rawJson: String,
-        date: LocalDate = LocalDate.now(),
-        zoneId: ZoneId = ZoneId.systemDefault(),
+        date: LocalDate = LocalDate.now(TURKEY_TIME_ZONE),
+        zoneId: ZoneId = TURKEY_TIME_ZONE,
         favoriteTeamNames: Set<String> = emptySet(),
     ): List<TodayMatch> {
         if (rawJson.isBlank()) return emptyList()
@@ -171,6 +169,16 @@ class TodayMatchRepository {
             }
         }
 
+        return selectMatchesForHome(
+            matches = matches,
+            favoriteTeamNames = favoriteTeamNames,
+        )
+    }
+
+    internal fun selectMatchesForHome(
+        matches: List<TodayMatch>,
+        favoriteTeamNames: Set<String> = emptySet(),
+    ): List<TodayMatch> {
         val normalizedFavorites = favoriteTeamNames
             .asSequence()
             .map(::normalizeName)
@@ -178,14 +186,20 @@ class TodayMatchRepository {
             .toSet()
 
         return matches
+            .filter { it.isFeaturedMatch() }
             .distinctBy { it.fixtureId }
             .sortedWith(
-                compareBy<TodayMatch> { if (it.involvesFavorite(normalizedFavorites)) 0 else 1 }
-                    .thenBy(::competitionPriority)
-                    .thenBy { it.kickoffEpochSeconds },
+                compareBy<TodayMatch> { it.kickoffEpochSeconds }
+                    .thenBy { if (it.involvesFavorite(normalizedFavorites)) 0 else 1 }
+                    .thenBy { it.fixtureId },
             )
             .take(MAX_HOME_MATCHES)
     }
+
+    private fun TodayMatch.isFeaturedMatch(): Boolean =
+        homeTeamId in FEATURED_TEAM_IDS || awayTeamId in FEATURED_TEAM_IDS ||
+            normalizeName(homeTeam) in FEATURED_TEAM_NAMES ||
+            normalizeName(awayTeam) in FEATURED_TEAM_NAMES
 
     private fun TodayMatch.involvesFavorite(normalizedFavorites: Set<String>): Boolean {
         if (normalizedFavorites.isEmpty()) return false
@@ -195,23 +209,6 @@ class TodayMatchRepository {
             favorite == home || favorite == away ||
                 home.contains(favorite) || away.contains(favorite) ||
                 favorite.contains(home) || favorite.contains(away)
-        }
-    }
-
-    private fun competitionPriority(match: TodayMatch): Int {
-        val league = normalizeName(match.leagueName)
-        val country = normalizeName(match.countryName)
-
-        return when {
-            "super lig" in league ||
-                "turkiye kupasi" in league ||
-                "champions league" in league ||
-                "europa league" in league ||
-                "conference league" in league -> 0
-
-            country == "turkey" || country == "turkiye" -> 1
-            league in TOP_EUROPEAN_LEAGUES -> 2
-            else -> 3
         }
     }
 
@@ -227,18 +224,44 @@ class TodayMatchRepository {
     private fun JSONObject.nullableInt(key: String): Int? =
         if (!has(key) || isNull(key)) null else optInt(key)
 
-    private companion object {
-        const val BASE_URL = "https://v3.football.api-sports.io"
-        const val CONNECT_TIMEOUT_MS = 8_000
-        const val READ_TIMEOUT_MS = 10_000
-        const val MAX_HOME_MATCHES = 12
+    companion object {
+        val TURKEY_TIME_ZONE: ZoneId = ZoneId.of("Europe/Istanbul")
 
-        val TOP_EUROPEAN_LEAGUES = setOf(
-            "premier league",
-            "la liga",
-            "serie a",
-            "bundesliga",
-            "ligue 1",
+        private const val BASE_URL = "https://v3.football.api-sports.io"
+        private const val CONNECT_TIMEOUT_MS = 8_000
+        private const val READ_TIMEOUT_MS = 10_000
+        private const val MAX_HOME_MATCHES = 12
+
+        // Premier League Big Six plus the three Turkish clubs and the two Spanish clubs.
+        private val FEATURED_TEAM_IDS = setOf(
+            33,  // Manchester United
+            40,  // Liverpool
+            42,  // Arsenal
+            47,  // Tottenham Hotspur
+            49,  // Chelsea
+            50,  // Manchester City
+            529, // Barcelona
+            541, // Real Madrid
+            549, // Beşiktaş
+            611, // Fenerbahçe
+            645, // Galatasaray
+        )
+
+        private val FEATURED_TEAM_NAMES = setOf(
+            "arsenal",
+            "chelsea",
+            "liverpool",
+            "manchester city",
+            "manchester united",
+            "manchester utd",
+            "man utd",
+            "tottenham",
+            "tottenham hotspur",
+            "barcelona",
+            "real madrid",
+            "besiktas",
+            "fenerbahce",
+            "galatasaray",
         )
     }
 }

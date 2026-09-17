@@ -203,6 +203,7 @@ private fun BackAction(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -240,6 +241,7 @@ private fun HiddenAppCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
+            .tvDpadClick(onClick = onRestore)
             .focusable()
             .clickable(onClick = onRestore),
         horizontalAlignment = Alignment.Start,

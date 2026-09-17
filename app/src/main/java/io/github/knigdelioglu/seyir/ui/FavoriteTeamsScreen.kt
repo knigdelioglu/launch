@@ -91,7 +91,7 @@ fun FavoriteTeamsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Takım adları cihazda saklanır; Gemini günlük sorguda bu maçlara öncelik verir.",
+                text = "Takım adları cihazda saklanır; kart yalnızca öne çıkan takımların maçlarını gösterir.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
@@ -242,6 +242,7 @@ private fun SelectedTeamCard(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceElevated,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -294,6 +295,7 @@ private fun TeamResultCard(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -336,6 +338,7 @@ private fun TeamAction(
                 },
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(enabled = enabled, onClick = onClick)
             .focusable(enabled)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 16.dp),
@@ -365,6 +368,7 @@ private fun FavoriteTeamsBackAction(onClick: () -> Unit) {
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),

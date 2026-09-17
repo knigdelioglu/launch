@@ -20,10 +20,8 @@ android {
         localProperties.getProperty("FOOTBALL_API_KEY")
             ?: localProperties.getProperty("API_FOOTBALL_KEY")
             ?: localProperties.getProperty("API_SPORTS_KEY")
-            ?: localProperties.getProperty("GEMINI_API_KEY")
             ?: System.getenv("FOOTBALL_API_KEY")
             ?: System.getenv("API_FOOTBALL_KEY")
-            ?: System.getenv("GEMINI_API_KEY")
             ?: ""
     ).trim()
 
@@ -35,7 +33,6 @@ android {
         versionName = "0.1.0-dev"
 
         buildConfigField("String", "FOOTBALL_API_KEY", "\"$footballApiKey\"")
-        buildConfigField("String", "GEMINI_API_KEY", "\"$footballApiKey\"")
     }
 
     buildFeatures {
@@ -76,6 +73,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.tv:tv-material:1.1.0")
+
+    testImplementation("junit:junit:4.13.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

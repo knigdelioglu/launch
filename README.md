@@ -52,32 +52,31 @@ Seyir'in ana ekranı uygulama odaklı kalır. Ağ tabanlı özellikler varsayıl
 
 Bu özellik **opsiyoneldir**. Etkinleştirilmediğinde Seyir maç verisi için internete istek göndermez ve ana ekranda ilgili satır görünmez.
 
-Veri kaynağı **Gemini API + Google Search grounding**'dir.
+Veri kaynağı **API-Football (api-sports.io)** servisidir.
 
-- Kullanıcı kendi Gemini API anahtarını **Ayarlar → Bugün ne var** ekranından girer.
-- Anahtar kaynak koda, GitHub reposuna veya APK içine sabitlenmez.
+- Kullanıcı kendi API-Football anahtarını **Ayarlar → Bugün ne var** ekranından girer veya `local.properties` üzerinden derlemeye ekler.
+- Anahtar kaynak koda veya GitHub reposuna yüklenmez.
 - Android yedekleme kapalıdır; anahtar ve launcher tercihleri cihazdaki uygulama verisinde kalır.
-- Seyir bir takvim gününde **en fazla 1 otomatik Gemini isteği** yapar.
-- Günün ilk uygun açılışında Gemini, Google Search kullanarak o günün öne çıkan futbol maçlarını araştırır.
-- Gemini isteği başlatılmadan önce `dailyMatchAttemptDate` kalıcı yazılır. İlk istek hata verse bile uygulamayı veya TV'yi yeniden açmak aynı gün ikinci otomatik isteği oluşturmaz.
+- Seyir bir takvim gününde **en fazla 1 otomatik API isteği** yapar.
+- Günün ilk uygun açılışında API-Football'dan günün fikstürü alınır.
+- İstek başlatılmadan önce `dailyMatchAttemptDate` kalıcı yazılır. İlk istek hata verse bile uygulamayı veya TV'yi yeniden açmak aynı gün ikinci otomatik isteği oluşturmaz.
 - Başarılı yanıt tarih + ham JSON + alınma zamanı ile DataStore'da kalıcı saklanır.
-- Aynı gün sonraki tüm açılışlarda yalnız yerel cache okunur; süreç/cihaz yeniden başlatılsa dahi yeni Gemini isteği yapılmaz.
+- Aynı gün sonraki tüm açılışlarda yalnız yerel cache okunur; süreç/cihaz yeniden başlatılsa dahi yeni API isteği yapılmaz.
 - Yeni takvim gününde ilk açılış yeni günlük sorguyu tetikler.
-- Home ekranında en fazla 12 maç gösterilir.
-- Öncelik sırası: Takımlarım → Süper Lig / Türkiye Kupası / UEFA kupaları → diğer Türkiye ligleri → büyük Avrupa ligleri → diğer karşılaşmalar.
-
-Gemini'den JSON Schema ile yapılandırılmış veri istenir. Maç saati cihazın saat diliminde `HH:mm`, durum ise `scheduled`, `live`, `finished`, `postponed` veya `cancelled` olarak alınır.
+- Home ekranında yalnızca Premier League Big Six (Arsenal, Chelsea, Liverpool, Manchester City, Manchester United, Tottenham), Galatasaray, Fenerbahçe, Beşiktaş, Real Madrid ve Barcelona'nın maçları gösterilir.
+- Maçlar gün içindeki başlangıç saatine göre sıralanır; canlı veya bitmiş maçlarda skor/dakika yerine programdaki başlangıç saati gösterilir.
+- Maç saatleri cihaz saat diliminden bağımsız olarak `Europe/Istanbul` (Türkiye saati) ile gösterilir.
 
 ### Takımlarım
 
 **Ayarlar → Bugün ne var → Takımlarım** ekranı tamamen yereldir; takım eklemek API isteği üretmez.
 
 - Kullanıcı takım adını yazar ve cihazda saklar.
-- Takımlarım listesi günlük Gemini prompt'una eklenir.
-- Seçilen takımın günlük cache'de maçı varsa yerel sıralamada anında öne taşınır.
-- Takımlarım gün içinde değiştirilirse yeni Gemini sorgusu yapılmaz. Cache'de bulunmayan yeni takımın maçı bir sonraki günlük sorguda dahil edilir.
+- Seçilen takım bu sabit öne çıkan takım listesinde yer alıyorsa aynı başlangıç saatindeki eşleşmelerde yerel olarak öne alınır.
+- Sabit listenin dışındaki takımlar günlük maç kartında gösterilmez.
+- Takımlarım gün içinde değiştirilirse yeni API sorgusu yapılmaz; cache'de bulunan aynı saatli eşleşmeler yeniden sıralanır.
 
-Bu tasarım kişisel kullanımda API/Search maliyetini öngörülebilir tutmayı amaçlar: özellik açıkken normal koşullarda **günde 1 sorgu**.
+Bu tasarım kişisel kullanımda API kotasını korur: özellik açıkken normal koşullarda **günde 1 sorgu**.
 
 ## Teknoloji Yığını
 
@@ -88,7 +87,7 @@ Bu tasarım kişisel kullanımda API/Search maliyetini öngörülebilir tutmayı
 - Jetpack DataStore
 - Kotlin Coroutines / Flow
 - `HttpURLConnection` + Android JSON
-- Gemini Interactions API + Google Search grounding (opsiyonel günlük maç verisi)
+- API-Football REST API (opsiyonel günlük maç verisi)
 - MediaSession entegrasyonu (gerektiğinde)
 - AirPlay fazında JNI + native C/C++ katmanı
 
@@ -104,7 +103,7 @@ Bu tasarım kişisel kullanımda API/Search maliyetini öngörülebilir tutmayı
 - Nötr / Mavi / Zümrüt accent
 - Reduced Motion
 - Kalıcı yerel ayarlar
-- Opsiyonel **Bugün ne var** günlük Gemini fikstürü
+- Opsiyonel **Bugün ne var** günlük maç fikstürü
 - **Takımlarım** yerel seçim ve günlük maç önceliklendirmesi
 - CI üzerinden debug APK artifact üretimi
 
@@ -144,7 +143,7 @@ Seyir'in varsayılan politikası:
 - zorunlu bulut servisi yok
 - Android app backup kapalı
 
-Ağ erişimi yalnızca kullanıcının açıkça etkinleştirdiği ağ gerektiren özellikler için kullanılır. `Bugün ne var` kapalıysa Gemini/Search isteği yapılmaz.
+Ağ erişimi yalnızca kullanıcının açıkça etkinleştirdiği ağ gerektiren özellikler için kullanılır. `Bugün ne var` kapalıysa hiçbir ağ/API isteği yapılmaz.
 
 ## Dokümantasyon
 

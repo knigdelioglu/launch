@@ -170,7 +170,7 @@ fun SportsSettingsScreen(
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Seyir günde en fazla 1 istek yapar ve veriyi cihazda kalıcı saklar. API-Football ücretsiz planı günde 100 istek hakkı sunar ve herhangi bir ödeme yöntemi/kredi kartı gerektirmez. Takımlarım değişiklikleri yerel olarak sıralanır.",
+                text = "Seyir günde en fazla 1 istek yapar ve veriyi cihazda kalıcı saklar. API-Football ücretsiz planı günde 100 istek hakkı sunar ve herhangi bir ödeme yöntemi/kredi kartı gerektirmez. Maçlar Türkiye saatiyle gösterilir; Takımlarım değişiklikleri aynı saatli eşleşmelerde yerel olarak uygulanır.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )
@@ -197,6 +197,7 @@ private fun SportsAction(
                 },
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(enabled = enabled, onClick = onClick)
             .focusable(enabled)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
@@ -226,6 +227,7 @@ private fun SportsBackAction(onClick: () -> Unit) {
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),

@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     visibleAppCount: Int,
     hiddenAppCount: Int,
+    favoriteAppCount: Int,
     themeMode: ThemeMode,
     accentMode: AccentMode,
     reducedMotion: Boolean,
@@ -54,6 +55,7 @@ fun SettingsScreen(
     onThemeModeChanged: (ThemeMode) -> Unit,
     onAccentModeChanged: (AccentMode) -> Unit,
     onReducedMotionChanged: (Boolean) -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenApps: () -> Unit,
     onOpenSports: () -> Unit,
     onBack: () -> Unit,
@@ -108,14 +110,24 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
             ) {
+                SettingsActionCard(
+                    title = "Favorileri yönet",
+                    description = "$favoriteAppCount seçili",
+                    symbol = "★",
+                    onClick = onOpenFavorites,
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(firstFocusRequester),
+                )
                 SettingsActionCard(
                     title = "Uygulamaları yönet",
                     description = "$visibleAppCount görünür • $hiddenAppCount gizli",
                     symbol = "▦",
                     onClick = onOpenApps,
-                    modifier = Modifier.focusRequester(firstFocusRequester),
+                    modifier = Modifier.weight(1f),
                 )
                 SettingsActionCard(
                     title = "Bugün ne var",
@@ -126,6 +138,7 @@ fun SettingsScreen(
                     },
                     symbol = "⚽",
                     onClick = onOpenSports,
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -216,6 +229,7 @@ private fun SettingsBackAction(onClick: () -> Unit) {
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -245,7 +259,7 @@ private fun SettingsActionCard(
 
     Row(
         modifier = modifier
-            .width(430.dp)
+            .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -255,6 +269,7 @@ private fun SettingsActionCard(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 18.dp),
@@ -314,6 +329,7 @@ private fun SettingsChoiceCard(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(20.dp),

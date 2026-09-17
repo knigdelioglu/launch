@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
+import android.provider.Settings as AndroidSettings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -19,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.knigdelioglu.seyir.ui.AllAppsScreen
+import io.github.knigdelioglu.seyir.ui.FavoriteAppsScreen
 import io.github.knigdelioglu.seyir.ui.FavoriteTeamsScreen
 import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
 import io.github.knigdelioglu.seyir.ui.HomeScreen
@@ -52,12 +54,14 @@ class MainActivity : ComponentActivity() {
                 var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
                 var homeFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
                 var allAppsFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
+                var favoriteAppsFocusTarget by rememberSaveable { mutableStateOf<String?>(null) }
                 var allAppsReturnScreen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
 
                 BackHandler(enabled = screen != SCREEN_HOME) {
                     screen = when (screen) {
                         SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
                         SCREEN_ALL_APPS -> allAppsReturnScreen
+                        SCREEN_FAVORITE_APPS -> SCREEN_SETTINGS
                         SCREEN_FAVORITE_TEAMS -> {
                             viewModel.clearTeamSearch()
                             SCREEN_SPORTS_SETTINGS
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
                     SCREEN_SETTINGS -> SettingsScreen(
                         visibleAppCount = uiState.apps.size,
                         hiddenAppCount = uiState.hiddenApps.size,
+                        favoriteAppCount = uiState.favoriteApps.size,
                         themeMode = uiState.themeMode,
                         accentMode = uiState.accentMode,
                         reducedMotion = uiState.reducedMotion,
@@ -102,6 +107,10 @@ class MainActivity : ComponentActivity() {
                         onThemeModeChanged = viewModel::setThemeMode,
                         onAccentModeChanged = viewModel::setAccentMode,
                         onReducedMotionChanged = viewModel::setReducedMotion,
+                        onOpenFavorites = {
+                            favoriteAppsFocusTarget = null
+                            screen = SCREEN_FAVORITE_APPS
+                        },
                         onOpenApps = {
                             allAppsReturnScreen = SCREEN_SETTINGS
                             screen = SCREEN_ALL_APPS
@@ -110,11 +119,23 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = SCREEN_HOME },
                     )
 
+                    SCREEN_FAVORITE_APPS -> FavoriteAppsScreen(
+                        apps = uiState.apps,
+                        favoritePackageNames = uiState.favoritePackageNames,
+                        transientMessage = uiState.transientMessage,
+                        focusTarget = favoriteAppsFocusTarget,
+                        onFocusTargetChanged = { favoriteAppsFocusTarget = it },
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onMoveFavorite = viewModel::moveFavorite,
+                        onBack = { screen = SCREEN_SETTINGS },
+                        onDismissMessage = viewModel::dismissTransientMessage,
+                    )
+
                     SCREEN_SPORTS_SETTINGS -> SportsSettingsScreen(
                         configured = uiState.sportsApiConfigured,
                         favoriteTeamCount = uiState.favoriteTeams.size,
-                        onSaveKey = viewModel::setGeminiApiKey,
-                        onClearKey = { viewModel.setGeminiApiKey("") },
+                        onSaveKey = viewModel::setFootballApiKey,
+                        onClearKey = { viewModel.setFootballApiKey("") },
                         onOpenFavoriteTeams = {
                             viewModel.clearTeamSearch()
                             screen = SCREEN_FAVORITE_TEAMS
@@ -147,7 +168,7 @@ class MainActivity : ComponentActivity() {
                             allAppsReturnScreen = SCREEN_HOME
                             screen = SCREEN_ALL_APPS
                         },
-                        onOpenSettings = { screen = SCREEN_SETTINGS },
+                        onOpenSettings = { openAndroidSettings() },
                         onRetry = viewModel::refresh,
                         onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
                         onDismissMessage = viewModel::dismissTransientMessage,
@@ -206,11 +227,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openAndroidSettings() {
+        startActivity(Intent(AndroidSettings.ACTION_SETTINGS))
+    }
+
     private companion object {
         const val SCREEN_HOME = "home"
         const val SCREEN_ALL_APPS = "all_apps"
         const val SCREEN_HIDDEN_APPS = "hidden_apps"
         const val SCREEN_SETTINGS = "settings"
+        const val SCREEN_FAVORITE_APPS = "favorite_apps"
         const val SCREEN_SPORTS_SETTINGS = "sports_settings"
         const val SCREEN_FAVORITE_TEAMS = "favorite_teams"
     }

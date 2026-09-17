@@ -11,6 +11,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +25,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,10 +61,8 @@ import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
-import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 object HomeFocusKey {
@@ -132,9 +133,12 @@ fun HomeScreen(
                 ),
             ),
     ) {
+        val scrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
                 .padding(
                     horizontal = SeyirSpacing.ScreenHorizontal,
                     vertical = SeyirSpacing.ScreenVertical,
@@ -147,7 +151,7 @@ fun HomeScreen(
                 onOpenSettings = onOpenSettings,
             )
 
-            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
             Text(
                 text = greetingFor(LocalTime.now()),
@@ -162,7 +166,7 @@ fun HomeScreen(
                 color = SeyirColors.TextSecondary,
             )
 
-            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
+            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
             when {
                 uiState.apps.isNotEmpty() -> {
@@ -232,7 +236,7 @@ fun HomeScreen(
                 else -> EmptyState()
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -321,7 +325,7 @@ private fun TodayMatchesSection(
                 loading -> "yükleniyor"
                 error != null -> "veri alınamadı"
                 matches.isEmpty() -> "bugün maç yok"
-                else -> "${matches.size} öne çıkan maç"
+                else -> "${matches.size} maç • Türkiye saati"
             },
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextTertiary,
@@ -353,6 +357,7 @@ private fun TodayMatchesSection(
 
         else -> LazyRow(
             horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Compact),
+            contentPadding = PaddingValues(vertical = 4.dp),
         ) {
             items(
                 items = matches,
@@ -399,10 +404,10 @@ private fun TodayMatchCard(match: TodayMatch) {
         )
         Spacer(modifier = Modifier.height(7.dp))
         Text(
-            text = matchStatusText(match),
+            text = formatMatchScheduleText(match),
             fontSize = 12.sp,
-            fontWeight = if (match.isLive) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (match.isLive) SeyirColors.Accent else SeyirColors.TextSecondary,
+            fontWeight = FontWeight.Medium,
+            color = SeyirColors.TextSecondary,
         )
     }
 }
@@ -419,6 +424,7 @@ private fun MatchRefreshAction(onClick: () -> Unit) {
                 if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -426,31 +432,6 @@ private fun MatchRefreshAction(onClick: () -> Unit) {
         fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
         color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextTertiary,
     )
-}
-
-private fun matchStatusText(match: TodayMatch): String {
-    val score = if (match.homeGoals != null && match.awayGoals != null) {
-        "${match.homeGoals} – ${match.awayGoals}"
-    } else {
-        null
-    }
-
-    return when {
-        match.isLive -> {
-            val minute = match.elapsedMinute?.let { "$it'" } ?: "CANLI"
-            if (score != null) "$minute   $score" else minute
-        }
-
-        match.isFinished -> if (score != null) "MS   $score" else "Maç sona erdi"
-        match.statusShort == "PST" -> "Ertelendi"
-        match.statusShort == "CANC" -> "İptal"
-        else -> {
-            val time = Instant.ofEpochSecond(match.kickoffEpochSeconds)
-                .atZone(ZoneId.systemDefault())
-                .format(MATCH_TIME_FORMATTER)
-            time
-        }
-    }
 }
 
 private suspend fun requestHomeFocus(
@@ -549,6 +530,7 @@ private fun TopBarAction(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 9.dp),
@@ -623,6 +605,7 @@ private fun AppCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .combinedClickable(
                 onClick = onClick,
@@ -688,6 +671,7 @@ private fun ActionCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick),
     ) {
@@ -814,6 +798,7 @@ private fun FavoriteAction(
                 if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
             )
             .onFocusChanged { focused = it.isFocused }
+            .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
@@ -851,6 +836,7 @@ private fun ErrorState(
     Text(
         text = "$message  Yeniden denemek için OK tuşuna basın.",
         modifier = Modifier
+            .tvDpadClick(onClick = onRetry)
             .focusable()
             .clickable(onClick = onRetry),
         color = SeyirColors.TextSecondary,
@@ -886,5 +872,3 @@ private fun greetingFor(time: LocalTime): String = when (time.hour) {
     in 12..17 -> "İyi günler"
     else -> "İyi akşamlar"
 }
-
-private val MATCH_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")

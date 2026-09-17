@@ -105,7 +105,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshTodayMatches(force: Boolean = false) {
-        val apiKey = latestPreferences.geminiApiKey.trim()
+        val apiKey = latestPreferences.footballApiKey.trim()
         if (apiKey.isBlank()) {
             _uiState.update {
                 it.copy(
@@ -120,7 +120,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (matchesJob?.isActive == true) return
 
-        val zoneId = ZoneId.systemDefault()
+        val zoneId = TodayMatchRepository.TURKEY_TIME_ZONE
         val today = LocalDate.now(zoneId)
         val todayValue = today.toString()
         val favoriteTeamNames = latestPreferences.favoriteTeams
@@ -144,7 +144,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     matchesLoading = false,
-                    matchesError = "Bugünkü Gemini sorgusu daha önce denendi. Yeniden denemek için sağdaki yenile butonuna basın.",
+                    matchesError = "Bugünkü maç sorgusu daha önce denendi. Yeniden denemek için sağdaki yenile butonuna basın.",
                 )
             }
             return
@@ -161,7 +161,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             try {
                 // Attempt date is persisted before the network call so process restarts cannot
-                // accidentally create multiple Gemini/Search charges on the same calendar day.
+                // accidentally create multiple API queries on the same calendar day.
                 preferencesRepository.markDailyMatchAttempt(todayValue)
 
                 val result = matchRepository.loadTodayMatches(
@@ -191,7 +191,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         todayMatches = emptyList(),
                         matchesLoading = false,
                         matchesError = error.message
-                            ?: "Bugünün maçları Gemini'den alınamadı. Yarın yeniden denenecek.",
+                            ?: "Bugünün maçları alınamadı. Yarın yeniden denenecek.",
                     )
                 }
             }
@@ -322,16 +322,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setGeminiApiKey(apiKey: String) {
+    fun setFootballApiKey(apiKey: String) {
         viewModelScope.launch {
-            preferencesRepository.setGeminiApiKey(apiKey)
+            preferencesRepository.setFootballApiKey(apiKey)
             preferencesRepository.markDailyMatchAttempt("")
             if (apiKey.isBlank()) clearTeamSearch()
             showMessage(
                 if (apiKey.isBlank()) {
                     "Bugün ne var devre dışı bırakıldı."
                 } else {
-                    "Gemini API anahtarı kaydedildi."
+                    "API-Football anahtarı kaydedildi."
                 },
             )
         }
@@ -381,7 +381,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
                 val previousPreferences = latestPreferences
-                val apiKeyChanged = preferences.geminiApiKey != previousPreferences.geminiApiKey
+                val apiKeyChanged = preferences.footballApiKey != previousPreferences.footballApiKey
                 val favoriteTeamsChanged = preferences.favoriteTeams != previousPreferences.favoriteTeams
                 val cacheChanged =
                     preferences.dailyMatchCacheDate != previousPreferences.dailyMatchCacheDate ||
@@ -396,7 +396,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
 
-                val today = LocalDate.now(ZoneId.systemDefault())
+                val today = LocalDate.now(TodayMatchRepository.TURKEY_TIME_ZONE)
                 val favoriteNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
                 if (
                     (favoriteTeamsChanged || cacheChanged) &&
@@ -406,12 +406,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     showCachedMatches(
                         preferences = preferences,
                         date = today,
-                        zoneId = ZoneId.systemDefault(),
+                        zoneId = TodayMatchRepository.TURKEY_TIME_ZONE,
                         favoriteTeamNames = favoriteNames,
                     )
                 }
 
-                if (apiKeyChanged || preferences.geminiApiKey.isNotBlank()) {
+                if (apiKeyChanged || preferences.footballApiKey.isNotBlank()) {
                     refreshTodayMatches(force = apiKeyChanged)
                 }
             }
@@ -447,7 +447,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             themeMode = preferences.themeMode,
             accentMode = preferences.accentMode,
             reducedMotion = preferences.reducedMotion,
-            sportsApiConfigured = preferences.geminiApiKey.isNotBlank(),
+            sportsApiConfigured = preferences.footballApiKey.isNotBlank(),
             favoriteTeams = preferences.favoriteTeams,
             matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
             errorMessage = null,
