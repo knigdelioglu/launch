@@ -177,7 +177,6 @@ fun HomeScreen(
                     uiState.apps.isNotEmpty() -> {
                         SectionHeader(
                             title = "Favoriler",
-                            meta = "${homeApps.size} sabitlenmiş",
                         )
                         Spacer(modifier = Modifier.height(SeyirSpacing.Item))
 
@@ -211,16 +210,14 @@ fun HomeScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
-                        Text(
-                            text = if (homeApps.isEmpty()) {
-                                "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz."
-                            } else {
-                                "Uzun OK ile favoriyi taşıyabilir veya kaldırabilirsiniz."
-                            },
-                            fontSize = SeyirType.Meta,
-                            color = SeyirColors.TextTertiary,
-                        )
+                        if (homeApps.isEmpty()) {
+                            Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
+                            Text(
+                                text = "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz.",
+                                fontSize = SeyirType.Meta,
+                                color = SeyirColors.TextTertiary,
+                            )
+                        }
 
                         if (uiState.sportsApiConfigured) {
                             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
@@ -474,21 +471,13 @@ private fun TopBar(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
-            Text(
-                text = "SEYİR",
-                fontSize = SeyirType.Brand,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = SeyirColors.TextPrimary.copy(alpha = 0.92f),
-            )
-            Spacer(modifier = Modifier.height(3.dp))
-            Text(
-                text = "TV ana ekranı",
-                fontSize = SeyirType.Meta,
-                color = SeyirColors.TextTertiary,
-            )
-        }
+        Text(
+            text = "SEYİR",
+            fontSize = SeyirType.Brand,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp,
+            color = SeyirColors.TextPrimary.copy(alpha = 0.92f),
+        )
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -553,7 +542,7 @@ private fun TopBarAction(
 @Composable
 private fun SectionHeader(
     title: String,
-    meta: String,
+    meta: String? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -565,12 +554,14 @@ private fun SectionHeader(
             fontWeight = FontWeight.SemiBold,
             color = SeyirColors.TextPrimary.copy(alpha = 0.9f),
         )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = meta,
-            fontSize = SeyirType.Meta,
-            color = SeyirColors.TextTertiary,
-        )
+        if (!meta.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = meta,
+                fontSize = SeyirType.Meta,
+                color = SeyirColors.TextTertiary,
+            )
+        }
     }
 }
 
