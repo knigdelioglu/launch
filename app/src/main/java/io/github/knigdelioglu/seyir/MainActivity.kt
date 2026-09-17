@@ -186,7 +186,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         enterImmersiveMode()
-        viewModel.refresh()
+        viewModel.refreshOnResume()
         viewModel.refreshTodayMatches()
     }
 

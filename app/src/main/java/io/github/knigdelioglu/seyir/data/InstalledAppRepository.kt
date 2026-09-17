@@ -8,8 +8,8 @@ import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.os.Build
 import android.provider.Settings
-import androidx.core.net.toUri
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.Collator
@@ -25,9 +25,10 @@ class InstalledAppRepository(
     private val context: Context,
 ) : InstalledAppSource {
     private val packageManager = context.packageManager
-    private val cacheLock = Any()
-    private val metadataCache = mutableMapOf<AppCacheKey, AppMetadata>()
-    private val launchIntentCache = mutableMapOf<AppCacheKey, Intent?>()
+
+    override fun cachedLaunchableApps(): List<InstalledApp> = synchronized(cacheLock) {
+        launchableAppsSnapshot.toList()
+    }
 
     override suspend fun loadLaunchableApps(): List<InstalledApp> = withContext(Dispatchers.IO) {
         val candidatesByPackage = linkedMapOf<String, ResolveInfo>()
@@ -61,7 +62,13 @@ class InstalledAppRepository(
         val collator = Collator.getInstance(Locale.getDefault()).apply {
             strength = Collator.PRIMARY
         }
-        candidates.values.sortedWith { left, right -> collator.compare(left.label, right.label) }
+        val sortedApps = candidates.values.sortedWith { left, right ->
+            collator.compare(left.label, right.label)
+        }
+        synchronized(cacheLock) {
+            launchableAppsSnapshot = sortedApps
+        }
+        sortedApps
     }
 
     override fun launch(packageName: String): Boolean {
@@ -202,5 +209,12 @@ class InstalledAppRepository(
 
     private companion object {
         const val ICON_SIZE_PX = 160
+
+        // Process-wide so a recreated MainActivity/ViewModel can paint the previous launcher
+        // snapshot immediately instead of rebuilding every icon before showing the home screen.
+        val cacheLock = Any()
+        val metadataCache = mutableMapOf<AppCacheKey, AppMetadata>()
+        val launchIntentCache = mutableMapOf<AppCacheKey, Intent?>()
+        var launchableAppsSnapshot: List<InstalledApp> = emptyList()
     }
 }

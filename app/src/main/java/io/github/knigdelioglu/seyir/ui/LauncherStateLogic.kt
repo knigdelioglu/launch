@@ -8,6 +8,19 @@ internal data class LauncherAppPackageState(
     val favoritePackageNames: List<String>,
 )
 
+internal const val APP_RESUME_REFRESH_INTERVAL_MILLIS = 15_000L
+
+internal fun shouldRefreshAppsOnResume(
+    hasCachedApps: Boolean,
+    lastRefreshCompletedAtMillis: Long,
+    nowMillis: Long,
+    intervalMillis: Long = APP_RESUME_REFRESH_INTERVAL_MILLIS,
+): Boolean {
+    if (!hasCachedApps) return true
+    if (lastRefreshCompletedAtMillis <= 0L) return true
+    return nowMillis - lastRefreshCompletedAtMillis >= intervalMillis
+}
+
 internal fun deriveLauncherAppPackageState(
     availablePackageNames: List<String>,
     preferences: LauncherPreferences,
