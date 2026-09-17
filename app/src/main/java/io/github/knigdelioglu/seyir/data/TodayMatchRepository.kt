@@ -6,6 +6,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.Normalizer
 import java.time.LocalDate
 import java.time.LocalTime
@@ -52,23 +54,22 @@ class TodayMatchRepository {
         date: LocalDate = LocalDate.now(zoneId),
         favoriteTeamNames: Set<String> = emptySet(),
     ): DailyMatchResult = withContext(Dispatchers.IO) {
-        require(apiKey.isNotBlank()) { "Gemini API anahtarı ayarlanmamış." }
+        require(apiKey.isNotBlank()) { "API-Football anahtarı ayarlanmamış." }
 
-        val connection = (URL(INTERACTIONS_URL).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
+        val dateValue = date.toString()
+        val timezoneValue = URLEncoder.encode(zoneId.id, StandardCharsets.UTF_8.name())
+        val url = URL(
+            "$BASE_URL/fixtures?date=$dateValue&timezone=$timezoneValue",
+        )
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("x-goog-api-key", apiKey.trim())
+            setRequestProperty("x-apisports-key", apiKey.trim())
         }
 
         try {
-            connection.outputStream.bufferedWriter().use { writer ->
-                writer.write(buildRequest(date, zoneId, favoriteTeamNames).toString())
-            }
-
             val responseCode = connection.responseCode
             val stream = if (responseCode in 200..299) {
                 connection.inputStream
@@ -78,26 +79,27 @@ class TodayMatchRepository {
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
 
             if (responseCode !in 200..299) {
-                val message = runCatching {
-                    JSONObject(body)
-                        .optJSONObject("error")
-                        ?.optString("message")
-                        ?.takeIf(String::isNotBlank)
+                val rawMessage = runCatching {
+                    val root = JSONObject(body)
+                    root.optJSONObject("errors")?.let { errors ->
+                        errors.keys().asSequence()
+                            .mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
+                            .joinToString(" • ")
+                    }
                 }.getOrNull()
-                throw IllegalStateException(
-                    message ?: "Gemini maç verisi alınamadı (HTTP $responseCode).",
-                )
+                val message = when {
+                    responseCode == 429 -> "API-Football günlük 100 istek kotanız doldu."
+                    responseCode == 401 || responseCode == 403 -> "API-Football anahtarı geçersiz."
+                    else -> rawMessage ?: "Maç verisi alınamadı (HTTP $responseCode)."
+                }
+                throw IllegalStateException(message)
             }
 
-            val outputJson = extractOutputText(body)
-                ?: throw IllegalStateException("Gemini yapılandırılmış maç verisi döndürmedi.")
-            val matches = parseCachedMatches(
-                rawJson = outputJson,
-                date = date,
-                zoneId = zoneId,
+            val matches = parseResponse(
+                body = body,
                 favoriteTeamNames = favoriteTeamNames,
             )
-            DailyMatchResult(rawJson = outputJson, matches = matches)
+            DailyMatchResult(rawJson = body, matches = matches)
         } finally {
             connection.disconnect()
         }
@@ -105,51 +107,65 @@ class TodayMatchRepository {
 
     fun parseCachedMatches(
         rawJson: String,
-        date: LocalDate,
+        date: LocalDate = LocalDate.now(),
         zoneId: ZoneId = ZoneId.systemDefault(),
         favoriteTeamNames: Set<String> = emptySet(),
     ): List<TodayMatch> {
         if (rawJson.isBlank()) return emptyList()
+        return runCatching {
+            parseResponse(rawJson, favoriteTeamNames)
+        }.getOrDefault(emptyList())
+    }
 
-        val root = JSONObject(rawJson)
-        val response = root.optJSONArray("matches") ?: return emptyList()
+    private fun parseResponse(
+        body: String,
+        favoriteTeamNames: Set<String>,
+    ): List<TodayMatch> {
+        val root = JSONObject(body)
+        val errors = root.opt("errors")
+        if (errors is JSONObject && errors.length() > 0) {
+            val message = errors.keys().asSequence()
+                .mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
+                .joinToString(" • ")
+                .ifBlank { "API-Football isteği reddedildi." }
+            throw IllegalStateException(message)
+        }
+
+        val response = root.optJSONArray("response") ?: return emptyList()
         val matches = buildList {
             for (index in 0 until response.length()) {
                 val item = response.optJSONObject(index) ?: continue
-                val league = item.optString("league").trim()
-                val country = item.optString("country").trim()
-                val home = item.optString("home_team").trim()
-                val away = item.optString("away_team").trim()
-                val kickoffLocal = item.optString("kickoff_local").trim()
-                if (home.isBlank() || away.isBlank() || kickoffLocal.isBlank()) continue
+                val fixture = item.optJSONObject("fixture") ?: continue
+                val league = item.optJSONObject("league") ?: continue
+                val teams = item.optJSONObject("teams") ?: continue
+                val goals = item.optJSONObject("goals")
+                val status = fixture.optJSONObject("status")
+                val home = teams.optJSONObject("home")
+                val away = teams.optJSONObject("away")
 
-                val localTime = runCatching { LocalTime.parse(kickoffLocal) }.getOrNull() ?: continue
-                val kickoffEpochSeconds = date
-                    .atTime(localTime)
-                    .atZone(zoneId)
-                    .toEpochSecond()
-                val status = item.optString("status", "scheduled").lowercase(Locale.ROOT)
-                val statusShort = when (status) {
-                    "live" -> "LIVE"
-                    "finished" -> "FT"
-                    "postponed" -> "PST"
-                    "cancelled" -> "CANC"
-                    else -> "NS"
+                val fixtureId = fixture.optLong("id", -1L)
+                val kickoff = fixture.optLong("timestamp", -1L)
+                val homeName = home?.optString("name").orEmpty()
+                val awayName = away?.optString("name").orEmpty()
+                if (fixtureId <= 0L || kickoff <= 0L || homeName.isBlank() || awayName.isBlank()) {
+                    continue
                 }
 
                 add(
                     TodayMatch(
-                        fixtureId = stableFixtureId(date, league, home, away, kickoffLocal),
-                        leagueName = league.ifBlank { "Futbol" },
-                        countryName = country,
-                        homeTeam = home,
-                        awayTeam = away,
-                        kickoffEpochSeconds = kickoffEpochSeconds,
-                        statusShort = statusShort,
-                        statusLong = status,
-                        elapsedMinute = item.nullableInt("elapsed_minute"),
-                        homeGoals = item.nullableInt("home_goals"),
-                        awayGoals = item.nullableInt("away_goals"),
+                        fixtureId = fixtureId,
+                        leagueName = league.optString("name").orEmpty(),
+                        countryName = league.optString("country").orEmpty(),
+                        homeTeamId = home?.optInt("id", 0) ?: 0,
+                        homeTeam = homeName,
+                        awayTeamId = away?.optInt("id", 0) ?: 0,
+                        awayTeam = awayName,
+                        kickoffEpochSeconds = kickoff,
+                        statusShort = status?.optString("short").orEmpty(),
+                        statusLong = status?.optString("long").orEmpty(),
+                        elapsedMinute = status?.nullableInt("elapsed"),
+                        homeGoals = goals?.nullableInt("home"),
+                        awayGoals = goals?.nullableInt("away"),
                     ),
                 )
             }
@@ -169,129 +185,6 @@ class TodayMatchRepository {
                     .thenBy { it.kickoffEpochSeconds },
             )
             .take(MAX_HOME_MATCHES)
-    }
-
-    private fun buildRequest(
-        date: LocalDate,
-        zoneId: ZoneId,
-        favoriteTeamNames: Set<String>,
-    ): JSONObject {
-        val favorites = favoriteTeamNames
-            .map(String::trim)
-            .filter(String::isNotBlank)
-            .distinct()
-            .joinToString(", ")
-            .ifBlank { "yok" }
-
-        val prompt = """
-            Bugün $date. Kullanıcının saat dilimi ${zoneId.id}.
-            Google Search kullanarak yalnızca bu tarihte oynanan veya oynanacak futbol maçlarını bul.
-            Türkiye ligleri ve kupaları, UEFA kulüp turnuvaları ve büyük Avrupa liglerindeki öne çıkan maçlara öncelik ver.
-            Kullanıcının Takımlarım listesi: $favorites.
-            Takımlarım listesindeki bir takım bugün oynuyorsa o maçı mutlaka dahil et.
-            En fazla $MAX_HOME_MATCHES maç döndür. Emin olmadığın karşılaşmayı uydurma.
-            kickoff_local alanını kullanıcının saat diliminde kesin HH:mm biçiminde ver.
-            status yalnız scheduled, live, finished, postponed veya cancelled değerlerinden biri olsun.
-            Skor bilinmiyorsa gol alanlarını null bırak.
-        """.trimIndent()
-
-        return JSONObject()
-            .put("model", MODEL)
-            .put("input", prompt)
-            .put("store", false)
-            .put(
-                "tools",
-                JSONArray().put(JSONObject().put("type", "google_search")),
-            )
-            .put(
-                "response_format",
-                JSONObject()
-                    .put("type", "text")
-                    .put("mime_type", "application/json")
-                    .put("schema", matchSchema()),
-            )
-    }
-
-    private fun matchSchema(): JSONObject {
-        fun nullableInteger(): JSONObject = JSONObject().put(
-            "type",
-            JSONArray().put("integer").put("null"),
-        )
-
-        val itemProperties = JSONObject()
-            .put("league", JSONObject().put("type", "string"))
-            .put("country", JSONObject().put("type", "string"))
-            .put("home_team", JSONObject().put("type", "string"))
-            .put("away_team", JSONObject().put("type", "string"))
-            .put("kickoff_local", JSONObject().put("type", "string"))
-            .put(
-                "status",
-                JSONObject()
-                    .put("type", "string")
-                    .put(
-                        "enum",
-                        JSONArray()
-                            .put("scheduled")
-                            .put("live")
-                            .put("finished")
-                            .put("postponed")
-                            .put("cancelled"),
-                    ),
-            )
-            .put("elapsed_minute", nullableInteger())
-            .put("home_goals", nullableInteger())
-            .put("away_goals", nullableInteger())
-
-        val matchItem = JSONObject()
-            .put("type", "object")
-            .put("properties", itemProperties)
-            .put(
-                "required",
-                JSONArray()
-                    .put("league")
-                    .put("country")
-                    .put("home_team")
-                    .put("away_team")
-                    .put("kickoff_local")
-                    .put("status")
-                    .put("elapsed_minute")
-                    .put("home_goals")
-                    .put("away_goals"),
-            )
-
-        return JSONObject()
-            .put("type", "object")
-            .put(
-                "properties",
-                JSONObject().put(
-                    "matches",
-                    JSONObject()
-                        .put("type", "array")
-                        .put("items", matchItem),
-                ),
-            )
-            .put("required", JSONArray().put("matches"))
-    }
-
-    private fun extractOutputText(body: String): String? {
-        val root = JSONObject(body)
-        root.optString("output_text")
-            .takeIf(String::isNotBlank)
-            ?.let { return it }
-
-        val steps = root.optJSONArray("steps") ?: return null
-        for (stepIndex in steps.length() - 1 downTo 0) {
-            val step = steps.optJSONObject(stepIndex) ?: continue
-            if (step.optString("type") != "model_output") continue
-            val content = step.optJSONArray("content") ?: continue
-            for (contentIndex in content.length() - 1 downTo 0) {
-                val text = content.optJSONObject(contentIndex)
-                    ?.optString("text")
-                    ?.takeIf(String::isNotBlank)
-                if (text != null) return text
-            }
-        }
-        return null
     }
 
     private fun TodayMatch.involvesFavorite(normalizedFavorites: Set<String>): Boolean {
@@ -331,22 +224,13 @@ class TodayMatchRepository {
         .replace("\\s+".toRegex(), " ")
         .trim()
 
-    private fun stableFixtureId(
-        date: LocalDate,
-        league: String,
-        home: String,
-        away: String,
-        kickoff: String,
-    ): Long = "$date|$league|$home|$away|$kickoff".hashCode().toLong() and 0xffffffffL
-
     private fun JSONObject.nullableInt(key: String): Int? =
         if (!has(key) || isNull(key)) null else optInt(key)
 
     private companion object {
-        const val INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
-        const val MODEL = "gemini-3.6-flash"
-        const val CONNECT_TIMEOUT_MS = 10_000
-        const val READ_TIMEOUT_MS = 30_000
+        const val BASE_URL = "https://v3.football.api-sports.io"
+        const val CONNECT_TIMEOUT_MS = 8_000
+        const val READ_TIMEOUT_MS = 10_000
         const val MAX_HOME_MATCHES = 12
 
         val TOP_EUROPEAN_LEAGUES = setOf(

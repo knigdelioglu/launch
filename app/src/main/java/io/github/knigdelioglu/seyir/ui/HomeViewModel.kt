@@ -104,7 +104,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refreshTodayMatches() {
+    fun refreshTodayMatches(force: Boolean = false) {
         val apiKey = latestPreferences.geminiApiKey.trim()
         if (apiKey.isBlank()) {
             _uiState.update {
@@ -127,6 +127,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             .mapTo(linkedSetOf()) { it.name }
 
         if (
+            !force &&
             latestPreferences.dailyMatchCacheDate == todayValue &&
             latestPreferences.dailyMatchCacheJson.isNotBlank()
         ) {
@@ -139,11 +140,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (latestPreferences.dailyMatchAttemptDate == todayValue) {
+        if (!force && latestPreferences.dailyMatchAttemptDate == todayValue) {
             _uiState.update {
                 it.copy(
                     matchesLoading = false,
-                    matchesError = "Bugünkü Gemini sorgusu daha önce denendi. Yarın otomatik olarak yeniden denenecek.",
+                    matchesError = "Bugünkü Gemini sorgusu daha önce denendi. Yeniden denemek için sağdaki yenile butonuna basın.",
                 )
             }
             return
@@ -324,6 +325,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
             preferencesRepository.setGeminiApiKey(apiKey)
+            preferencesRepository.markDailyMatchAttempt("")
             if (apiKey.isBlank()) clearTeamSearch()
             showMessage(
                 if (apiKey.isBlank()) {
@@ -410,7 +412,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (apiKeyChanged || preferences.geminiApiKey.isNotBlank()) {
-                    refreshTodayMatches()
+                    refreshTodayMatches(force = apiKeyChanged)
                 }
             }
         }

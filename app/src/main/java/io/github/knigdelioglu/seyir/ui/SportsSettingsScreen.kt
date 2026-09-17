@@ -77,7 +77,7 @@ fun SportsSettingsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Günün öne çıkan futbol maçlarını Gemini + Google Search ile bir kez bulur.",
+                text = "Günün öne çıkan futbol maçlarını API-Football ile listeler.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
@@ -100,7 +100,7 @@ fun SportsSettingsScreen(
                     .padding(22.dp),
             ) {
                 Text(
-                    text = "Gemini API + Google Search",
+                    text = "API-Football (api-sports.io)",
                     fontSize = SeyirType.SectionTitle,
                     fontWeight = FontWeight.SemiBold,
                     color = SeyirColors.TextPrimary,
@@ -110,7 +110,7 @@ fun SportsSettingsScreen(
                     text = if (configured) {
                         "Bağlı • anahtar aktif"
                     } else {
-                        "Bağlı değil • Gemini API anahtarı gerekiyor"
+                        "Bağlı değil • API-Football anahtarı gerekiyor"
                     },
                     fontSize = SeyirType.Meta,
                     color = if (configured) SeyirColors.Accent else SeyirColors.TextSecondary,
@@ -123,8 +123,8 @@ fun SportsSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    label = { MaterialText("Gemini API anahtarı") },
-                    placeholder = { MaterialText("AIza…") },
+                    label = { MaterialText("API-Football anahtarı") },
+                    placeholder = { MaterialText("api-sports anahtarı…") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = SeyirColors.TextPrimary,
                         unfocusedTextColor = SeyirColors.TextPrimary,
@@ -170,7 +170,7 @@ fun SportsSettingsScreen(
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Seyir bir takvim gününde en fazla 1 otomatik Gemini isteği yapar. Sonuç tarih, veri ve alınma zamanı ile cihazda kalıcı saklanır; uygulamayı veya TV'yi yeniden açmak aynı gün yeni istek oluşturmaz. Takımlarım değişiklikleri mevcut günlük listede eşleşiyorsa anında yeniden sıralanır, yeni Gemini sorgusu ertesi gün yapılır.",
+                text = "Seyir günde en fazla 1 istek yapar ve veriyi cihazda kalıcı saklar. API-Football ücretsiz planı günde 100 istek hakkı sunar ve herhangi bir ödeme yöntemi/kredi kartı gerektirmez. Takımlarım değişiklikleri yerel olarak sıralanır.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )

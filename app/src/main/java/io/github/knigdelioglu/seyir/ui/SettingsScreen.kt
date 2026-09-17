@@ -120,7 +120,7 @@ fun SettingsScreen(
                 SettingsActionCard(
                     title = "Bugün ne var",
                     description = if (sportsApiConfigured) {
-                        "Gemini bağlı • günlük tek sorgu"
+                        "API-Football bağlı • günlük tek sorgu"
                     } else {
                         "Maç verisi kapalı"
                     },

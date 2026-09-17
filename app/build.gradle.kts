@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -9,14 +10,22 @@ android {
     namespace = "io.github.knigdelioglu.seyir"
     compileSdk = 37
 
-    val localProperties = java.util.Properties().apply {
+    val localProperties = Properties().apply {
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localPropertiesFile.inputStream().use { load(it) }
         }
     }
-    val geminiApiKey: String = (localProperties.getProperty("GEMINI_API_KEY") ?: System.getenv("GEMINI_API_KEY") ?: "")
-        .trim()
+    val footballApiKey: String = (
+        localProperties.getProperty("FOOTBALL_API_KEY")
+            ?: localProperties.getProperty("API_FOOTBALL_KEY")
+            ?: localProperties.getProperty("API_SPORTS_KEY")
+            ?: localProperties.getProperty("GEMINI_API_KEY")
+            ?: System.getenv("FOOTBALL_API_KEY")
+            ?: System.getenv("API_FOOTBALL_KEY")
+            ?: System.getenv("GEMINI_API_KEY")
+            ?: ""
+    ).trim()
 
     defaultConfig {
         applicationId = "io.github.knigdelioglu.seyir"
@@ -25,7 +34,8 @@ android {
         versionCode = 1
         versionName = "0.1.0-dev"
 
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "FOOTBALL_API_KEY", "\"$footballApiKey\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"$footballApiKey\"")
     }
 
     buildFeatures {

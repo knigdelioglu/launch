@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onOpenSettings = { screen = SCREEN_SETTINGS },
                         onRetry = viewModel::refresh,
-                        onRefreshMatches = viewModel::refreshTodayMatches,
+                        onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
                 }

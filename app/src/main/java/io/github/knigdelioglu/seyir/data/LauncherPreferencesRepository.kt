@@ -46,7 +46,7 @@ data class LauncherPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
-    val geminiApiKey: String = BuildConfig.GEMINI_API_KEY,
+    val geminiApiKey: String = BuildConfig.FOOTBALL_API_KEY,
     val favoriteTeams: List<FavoriteTeam> = emptyList(),
     val dailyMatchAttemptDate: String = "",
     val dailyMatchCacheDate: String = "",
@@ -150,6 +150,7 @@ class LauncherPreferencesRepository(
         dataStore.edit { preferences ->
             preferences[SCHEMA_VERSION] = CURRENT_SCHEMA_VERSION
             preferences[GEMINI_API_KEY] = apiKey.trim()
+            preferences[API_FOOTBALL_KEY] = apiKey.trim()
         }
     }
 
@@ -216,7 +217,9 @@ class LauncherPreferencesRepository(
         themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
-        geminiApiKey = preferences[GEMINI_API_KEY]?.takeIf { it.isNotBlank() } ?: BuildConfig.GEMINI_API_KEY,
+        geminiApiKey = preferences[API_FOOTBALL_KEY]?.takeIf { it.isNotBlank() }
+            ?: preferences[GEMINI_API_KEY]?.takeIf { it.isNotBlank() }
+            ?: BuildConfig.FOOTBALL_API_KEY,
         favoriteTeams = decodeFavoriteTeams(preferences[FAVORITE_TEAMS]),
         dailyMatchAttemptDate = preferences[DAILY_MATCH_ATTEMPT_DATE].orEmpty(),
         dailyMatchCacheDate = preferences[DAILY_MATCH_CACHE_DATE].orEmpty(),
@@ -287,6 +290,7 @@ class LauncherPreferencesRepository(
         val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
         val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key_v1")
+        val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
         val FAVORITE_TEAMS = stringPreferencesKey("favorite_teams_v1")
         val DAILY_MATCH_ATTEMPT_DATE = stringPreferencesKey("daily_match_attempt_date_v1")
         val DAILY_MATCH_CACHE_DATE = stringPreferencesKey("daily_match_cache_date_v1")
