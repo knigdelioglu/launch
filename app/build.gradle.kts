@@ -9,16 +9,28 @@ android {
     namespace = "io.github.knigdelioglu.seyir"
     compileSdk = 37
 
+    val localProperties = java.util.Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { load(it) }
+        }
+    }
+    val geminiApiKey: String = (localProperties.getProperty("GEMINI_API_KEY") ?: System.getenv("GEMINI_API_KEY") ?: "")
+        .trim()
+
     defaultConfig {
         applicationId = "io.github.knigdelioglu.seyir"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0-dev"
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

@@ -108,7 +108,7 @@ fun SportsSettingsScreen(
                 Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
                 Text(
                     text = if (configured) {
-                        "Bağlı • anahtar yalnız bu cihazda saklanıyor"
+                        "Bağlı • anahtar aktif"
                     } else {
                         "Bağlı değil • Gemini API anahtarı gerekiyor"
                     },

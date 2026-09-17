@@ -34,7 +34,7 @@ CMakeFiles/
 CMakeCache.txt
 cmake-build-*/
 
-# Signing / secrets
+# Signing / secrets / API keys
 *.jks
 *.keystore
 keystore.properties
@@ -42,6 +42,14 @@ signing.properties
 *.pem
 *.p12
 *.pfx
+secrets.properties
+secret.properties
+apikey.properties
+api_key.properties
+gemini.properties
+*.key
+*.secret
+*.token
 .env
 .env.*
 !.env.example
@@ -49,6 +57,8 @@ signing.properties
 # Google / service credentials
 **/google-services.json
 **/service-account*.json
+secrets.json
+api-keys.json
 
 # Kotlin / tooling
 .kotlin/

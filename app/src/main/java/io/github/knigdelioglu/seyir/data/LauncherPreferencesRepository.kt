@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.knigdelioglu.seyir.BuildConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -45,7 +46,7 @@ data class LauncherPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
-    val geminiApiKey: String = "",
+    val geminiApiKey: String = BuildConfig.GEMINI_API_KEY,
     val favoriteTeams: List<FavoriteTeam> = emptyList(),
     val dailyMatchAttemptDate: String = "",
     val dailyMatchCacheDate: String = "",
@@ -215,7 +216,7 @@ class LauncherPreferencesRepository(
         themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
-        geminiApiKey = preferences[GEMINI_API_KEY].orEmpty(),
+        geminiApiKey = preferences[GEMINI_API_KEY]?.takeIf { it.isNotBlank() } ?: BuildConfig.GEMINI_API_KEY,
         favoriteTeams = decodeFavoriteTeams(preferences[FAVORITE_TEAMS]),
         dailyMatchAttemptDate = preferences[DAILY_MATCH_ATTEMPT_DATE].orEmpty(),
         dailyMatchCacheDate = preferences[DAILY_MATCH_CACHE_DATE].orEmpty(),
