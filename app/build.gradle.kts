@@ -75,6 +75,9 @@ dependencies {
     implementation("androidx.tv:tv-material:1.1.0")
 
     testImplementation("junit:junit:4.13.2")
+    // Android's org.json classes are framework stubs in local JVM tests. Keep
+    // the real parser test-only so production has no additional dependency.
+    testImplementation("org.json:json:20260814")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -1,7 +1,5 @@
 package io.github.knigdelioglu.seyir.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,14 +33,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
-import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
@@ -63,23 +59,25 @@ fun HiddenAppsScreen(
     val backFocusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
     var focusTarget by remember { mutableStateOf<String?>(null) }
+    var restoreRequest by remember { mutableStateOf(FocusRestoreRequest()) }
 
-    // focusTarget records the fallback target; D-pad focus changes must not force another scroll.
-    LaunchedEffect(apps) {
-        delay(100)
-
+    FocusRestoreEffect(
+        itemKeys = apps.map { it.packageName },
+        focusTarget = focusTarget,
+        request = restoreRequest,
+    ) { latestFocusTarget ->
         if (apps.isEmpty()) {
-            runCatching { backFocusRequester.requestFocus() }
-            return@LaunchedEffect
-        }
-
-        val targetIndex = apps.indexOfFirst { it.packageName == focusTarget }
-            .takeIf { it >= 0 } ?: 0
-        runCatching { gridState.scrollToItem(targetIndex) }
-        delay(16)
-        val packageName = apps[targetIndex].packageName
-        appFocusRequesters[packageName]?.let { requester ->
-            runCatching { requester.requestFocus() }
+            requestFocusBestEffort { backFocusRequester.requestFocus() }
+        } else {
+            restoreItemFocus(
+                itemKeys = apps.map { it.packageName },
+                focusTarget = latestFocusTarget,
+                isItemVisible = { targetIndex ->
+                    gridState.layoutInfo.visibleItemsInfo.any { it.index == targetIndex }
+                },
+                scrollToItem = gridState::scrollToItem,
+                requestFocus = { key -> appFocusRequesters[key]?.requestFocus() },
+            )
         }
     }
 
@@ -111,7 +109,8 @@ fun HiddenAppsScreen(
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
-            BackAction(
+            TvHeaderAction(
+                text = "‹  Tüm Uygulamalar",
                 onClick = onBack,
                 modifier = Modifier.focusRequester(backFocusRequester),
             )
@@ -151,14 +150,17 @@ fun HiddenAppsScreen(
                     itemsIndexed(
                         items = apps,
                         key = { _, app -> app.packageName },
-                    ) { index, app ->
+                    ) { _, app ->
                         HiddenAppCard(
                             app = app,
                             onFocused = { focusTarget = app.packageName },
                             onRestore = {
-                                val fallback = apps.getOrNull(index + 1)
-                                    ?: apps.getOrNull(index - 1)
-                                focusTarget = fallback?.packageName
+                                val fallback = adjacentFallbackKey(
+                                    itemKeys = apps.map { it.packageName },
+                                    removedKey = app.packageName,
+                                )
+                                focusTarget = fallback
+                                restoreRequest = restoreRequest.next(FocusRestoreReason.ITEM_REMOVED)
                                 onRestore(app)
                             },
                             modifier = Modifier.focusRequester(
@@ -171,47 +173,12 @@ fun HiddenAppsScreen(
         }
 
         transientMessage?.let { message ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = SeyirSpacing.ScreenVertical)
-                    .clip(RoundedCornerShape(SeyirRadius.Action))
-                    .background(SeyirColors.SurfaceElevated)
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = message,
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextPrimary,
-                )
-            }
+            TvTransientMessage(
+                message = message,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
-}
-
-@Composable
-private fun BackAction(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var focused by remember { mutableStateOf(false) }
-
-    Text(
-        text = "‹  Tüm Uygulamalar",
-        modifier = modifier
-            .clip(RoundedCornerShape(SeyirRadius.Pill))
-            .background(
-                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(onClick = onClick)
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        fontSize = SeyirType.Meta,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
-    )
 }
 
 @Composable
@@ -222,22 +189,10 @@ private fun HiddenAppCard(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(
-            durationMillis = SeyirMotion.FocusDurationMs,
-            easing = SeyirMotion.FocusEasing,
-        ),
-        label = "hidden-app-card-scale",
-    )
-
     Column(
         modifier = modifier
             .width(SeyirSize.AppCardWidth)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .tvFocusScale(focused, "hidden-app-card-scale")
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onFocused()

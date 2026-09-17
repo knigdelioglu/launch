@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,7 +67,10 @@ fun SportsSettingsScreen(
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
-            SportsBackAction(onClick = onBack)
+            TvHeaderAction(
+                text = "‹  Ayarlar",
+                onClick = onBack,
+            )
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
 
             Text(
@@ -184,55 +188,11 @@ private fun SportsAction(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(SeyirRadius.Action))
-            .background(
-                when {
-                    !enabled -> SeyirColors.SurfaceSoft.copy(alpha = 0.45f)
-                    focused -> SeyirColors.SurfaceFocused
-                    else -> SeyirColors.SurfaceSoft
-                },
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(enabled = enabled, onClick = onClick)
-            .focusable(enabled)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = text,
-            fontSize = SeyirType.CardLabel,
-            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-            color = when {
-                !enabled -> SeyirColors.TextTertiary
-                focused -> SeyirColors.TextPrimary
-                else -> SeyirColors.TextSecondary
-            },
-        )
-    }
-}
-
-@Composable
-private fun SportsBackAction(onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-
-    Text(
-        text = "‹  Ayarlar",
-        modifier = Modifier
-            .clip(RoundedCornerShape(SeyirRadius.Pill))
-            .background(
-                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(onClick = onClick)
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        fontSize = SeyirType.Meta,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
+    TvAction(
+        text = text,
+        enabled = enabled,
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        unfocusedFontWeight = FontWeight.Medium,
     )
 }

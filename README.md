@@ -54,7 +54,8 @@ Bu özellik **opsiyoneldir**. Etkinleştirilmediğinde Seyir maç verisi için i
 
 Veri kaynağı **API-Football (api-sports.io)** servisidir.
 
-- Kullanıcı kendi API-Football anahtarını **Ayarlar → Bugün ne var** ekranından girer veya `local.properties` üzerinden derlemeye ekler.
+- Kullanıcı kendi API-Football anahtarını varsayılan olarak **Ayarlar → Bugün ne var** ekranından girer veya yerel geliştirmede `local.properties`/environment üzerinden derlemeye ekler.
+- `BuildConfig.FOOTBALL_API_KEY` içine derleme sırasında yazılan değer APK'dan çıkarılabilir; bu bir secret vault değildir. Anahtar repoya commit edilmez, CI loglarına yazdırılmaz ve kişisel/local kullanım kolaylığı olarak değerlendirilmelidir.
 - Anahtar kaynak koda veya GitHub reposuna yüklenmez.
 - Android yedekleme kapalıdır; anahtar ve launcher tercihleri cihazdaki uygulama verisinde kalır.
 - Seyir bir takvim gününde **en fazla 1 otomatik API isteği** yapar.

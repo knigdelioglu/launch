@@ -1,7 +1,5 @@
 package io.github.knigdelioglu.seyir.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,7 +38,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -52,16 +48,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
-import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
-
-object FavoriteAppsFocusKey {
-    const val BACK = "__favorite_apps_back__"
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -77,9 +68,13 @@ fun FavoriteAppsScreen(
     onDismissMessage: () -> Unit,
 ) {
     val appByPackage = remember(apps) { apps.associateBy { it.packageName } }
+    val favoritePackageSet = remember(favoritePackageNames) { favoritePackageNames.toSet() }
+    val favoriteIndexByPackage = remember(favoritePackageNames) {
+        favoritePackageNames.withIndex().associate { (index, packageName) -> packageName to index }
+    }
     val orderedApps = remember(apps, favoritePackageNames) {
         favoritePackageNames.mapNotNull(appByPackage::get) +
-            apps.filterNot { it.packageName in favoritePackageNames }
+            apps.filterNot { it.packageName in favoritePackageSet }
     }
     val appFocusRequesters = remember(orderedApps.map { it.packageName }) {
         orderedApps.associate { it.packageName to FocusRequester() }
@@ -87,24 +82,25 @@ fun FavoriteAppsScreen(
     val backFocusRequester = remember { FocusRequester() }
     val gridState = rememberLazyGridState()
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
-    var restoreRequest by remember { mutableIntStateOf(0) }
+    var restoreRequest by remember { mutableStateOf(FocusRestoreRequest()) }
 
-    LaunchedEffect(orderedApps, focusTarget, restoreRequest) {
-        delay(if (restoreRequest > 0) 90 else 120)
-
+    FocusRestoreEffect(
+        itemKeys = orderedApps.map { it.packageName },
+        focusTarget = focusTarget,
+        request = restoreRequest,
+    ) { latestFocusTarget ->
         if (orderedApps.isEmpty()) {
-            runCatching { backFocusRequester.requestFocus() }
-            return@LaunchedEffect
-        }
-
-        val targetIndex = orderedApps.indexOfFirst { it.packageName == focusTarget }
-            .takeIf { it >= 0 } ?: 0
-        runCatching { gridState.scrollToItem(targetIndex) }
-        delay(16)
-        orderedApps[targetIndex].packageName.let { packageName ->
-            appFocusRequesters[packageName]?.let { requester ->
-                runCatching { requester.requestFocus() }
-            }
+            requestFocusBestEffort { backFocusRequester.requestFocus() }
+        } else {
+            restoreItemFocus(
+                itemKeys = orderedApps.map { it.packageName },
+                focusTarget = latestFocusTarget,
+                isItemVisible = { targetIndex ->
+                    gridState.layoutInfo.visibleItemsInfo.any { it.index == targetIndex }
+                },
+                scrollToItem = gridState::scrollToItem,
+                requestFocus = { key -> appFocusRequesters[key]?.requestFocus() },
+            )
         }
     }
 
@@ -117,7 +113,7 @@ fun FavoriteAppsScreen(
 
     fun closeDialogAndRestore() {
         contextApp = null
-        restoreRequest += 1
+        restoreRequest = restoreRequest.next(FocusRestoreReason.DIALOG_DISMISSED)
     }
 
     Box(
@@ -141,7 +137,8 @@ fun FavoriteAppsScreen(
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
-            FavoriteAppsBackAction(
+            TvHeaderAction(
+                text = "‹  Ayarlar",
                 onClick = onBack,
                 modifier = Modifier.focusRequester(backFocusRequester),
             )
@@ -187,14 +184,15 @@ fun FavoriteAppsScreen(
                         items = orderedApps,
                         key = { _, app -> app.packageName },
                     ) { _, app ->
-                        val isFavorite = app.packageName in favoritePackageNames
-                        val favoriteIndex = favoritePackageNames.indexOf(app.packageName)
+                        val favoriteIndex = favoriteIndexByPackage[app.packageName] ?: -1
+                        val isFavorite = favoriteIndex >= 0
                         FavoriteAppCard(
                             app = app,
                             isFavorite = isFavorite,
                             favoriteIndex = favoriteIndex,
                             onClick = {
                                 onFocusTargetChanged(app.packageName)
+                                restoreRequest = restoreRequest.next(FocusRestoreReason.ORDER_CHANGED)
                                 onToggleFavorite(app)
                             },
                             onLongClick = { contextApp = app },
@@ -209,25 +207,15 @@ fun FavoriteAppsScreen(
         }
 
         transientMessage?.let { message ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = SeyirSpacing.ScreenVertical)
-                    .clip(RoundedCornerShape(SeyirRadius.Action))
-                    .background(SeyirColors.SurfaceElevated)
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = message,
-                    fontSize = SeyirType.Meta,
-                    color = SeyirColors.TextPrimary,
-                )
-            }
+            TvTransientMessage(
+                message = message,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
     contextApp?.let { app ->
-        val favoriteIndex = favoritePackageNames.indexOf(app.packageName)
+        val favoriteIndex = favoriteIndexByPackage[app.packageName] ?: -1
         FavoriteAppContextDialog(
             app = app,
             isFavorite = favoriteIndex >= 0,
@@ -265,22 +253,10 @@ private fun FavoriteAppCard(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(
-            durationMillis = SeyirMotion.FocusDurationMs,
-            easing = SeyirMotion.FocusEasing,
-        ),
-        label = "favorite-app-card-scale",
-    )
-
     Column(
         modifier = modifier
             .width(SeyirSize.AppCardWidth)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .tvFocusScale(focused, "favorite-app-card-scale")
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
@@ -362,8 +338,8 @@ private fun FavoriteAppContextDialog(
     val firstActionFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(80)
-        runCatching { firstActionFocusRequester.requestFocus() }
+        awaitFocusLayout()
+        requestFocusBestEffort { firstActionFocusRequester.requestFocus() }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -433,56 +409,15 @@ private fun FavoriteAppContextDialog(
 }
 
 @Composable
-private fun FavoriteAppsBackAction(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var focused by remember { mutableStateOf(false) }
-
-    Text(
-        text = "‹  Ayarlar",
-        modifier = modifier
-            .clip(RoundedCornerShape(SeyirRadius.Pill))
-            .background(
-                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(onClick = onClick)
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        fontSize = SeyirType.Meta,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
-    )
-}
-
-@Composable
 private fun FavoriteManagementAction(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var focused by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(SeyirRadius.Action))
-            .background(
-                if (focused) SeyirColors.SurfaceFocused else Color.Transparent,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(onClick = onClick)
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
-    ) {
-        Text(
-            text = text,
-            fontSize = SeyirType.CardLabel,
-            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
-        )
-    }
+    TvAction(
+        text = text,
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        unfocusedContainerColor = Color.Transparent,
+    )
 }

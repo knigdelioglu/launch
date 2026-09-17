@@ -325,6 +325,8 @@ Gerçek schema geliştirme sırasında versionlanmalıdır.
 ### Zorunlu
 
 - secret/keystore repo içine commit edilmez
+- `BuildConfig.FOOTBALL_API_KEY` içine gömülen local değer APK'dan çıkarılabilir; kullanıcı ayarlardaki cihaz içi anahtar girişini tercih etmelidir
+- API key CI loglarına yazdırılmaz
 - gereksiz Android permission eklenmez
 - internet izni yalnız ağ özelliği gerçekten gerektiğinde eklenir
 - üçüncü taraf SDK eklenecekse veri toplama davranışı incelenir

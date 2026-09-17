@@ -24,6 +24,8 @@
     <application
         android:allowBackup="false"
         android:banner="@drawable/seyir_banner"
+        android:dataExtractionRules="@xml/backup_rules"
+        android:fullBackupContent="@xml/backup_rules_legacy"
         android:icon="@drawable/ic_seyir"
         android:label="@string/app_name"
         android:supportsRtl="true"

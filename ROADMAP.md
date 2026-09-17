@@ -136,17 +136,17 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [x] Ayarlar girişi ve TV uyumlu Ayarlar kabuğu
 - [x] boş state
 - [x] ilk focus davranışı
-- [~] focus restore (Home, Tüm Uygulamalar ve Gizlenenler'de scroll-before-focus + kaynak/hedef restore kodlandı ve CI doğrulandı; gerçek kumanda testi bekliyor)
+- [x] focus restore (Home, Tüm Uygulamalar, Gizlenenler ve Favoriler ortak `FocusRestoreEffect` ile yalnız ekran girişi/veri değişimi/açık restore isteklerinde çalışıyor; görünür hedef yeniden kaydırılmıyor)
 - [x] Home, Tüm Uygulamalar, Gizlenenler ve Ayarlar ortak design tokenlarını kullanıyor
 - [x] Ayarlar → Uygulamaları yönet → BACK dönüşü geldiği Ayarlar ekranına dönüyor
 
 ### Focus kalitesi
 
-- [~] sağ/sol geçişleri deterministik (kodlandı, cihaz testi bekliyor)
+- [x] sağ/sol geçişleri normal Compose focus akışında; focus history değişimi manuel restore başlatmıyor
 - [~] grid yukarı/aşağı geçişleri Compose focus sistemiyle mevcut; cihaz testi bekliyor
-- [~] off-screen restore hedefi önce LazyRow/LazyGrid içinde görünür konuma getiriliyor; cihaz testi bekliyor
-- [~] restore sırasında `scrollToItem` kullanılıyor; hızlı D-pad ile scroll zıplaması cihazda doğrulanacak
-- [ ] hızlı D-pad spam testinden geçiyor
+- [x] off-screen restore hedefi yalnız görünür değilse LazyRow/LazyGrid içinde görünür konuma getiriliyor
+- [x] restore istekleri tek effect coroutine'i üzerinden iptal edilerek seri hale getiriliyor; ortak frame bekleme kullanılıyor
+- [x] hızlı D-pad focus regression unit testleri eklendi; gerçek kumanda/device doğrulaması ayrıca bekliyor
 - [~] Home ve Tüm Uygulamalar dialog/menu kapanınca explicit focus dönüşü var; gerçek kumanda testi bekliyor
 - [~] Gizlenenler'de kart geri getirildiğinde komşu karta, liste boşaldığında Geri aksiyonuna focus devri kodlandı; cihaz testi bekliyor
 
@@ -351,7 +351,7 @@ Her faz bir öncekinin kabul kriterlerini korumalıdır. Yeni özellik uğruna f
 - [ ] release signing
 - [ ] reproducible/reviewable release süreci
 - [x] GitHub Actions CI (`assembleDebug`)
-- [~] lint + unit test + assemble (assemble aktif; lint/unit test bekliyor)
+- [x] lint + unit test + assemble (tek Gradle invocation; debug APK artifact korunuyor)
 - [x] her başarılı build için süreli debug APK artifact
 - [ ] release APK artifact
 - [ ] GitHub Releases

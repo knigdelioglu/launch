@@ -1,8 +1,11 @@
 package io.github.knigdelioglu.seyir.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -11,7 +14,6 @@ import java.text.Normalizer
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
-
 
 data class TodayMatch(
     val fixtureId: Long,
@@ -45,26 +47,72 @@ data class DailyMatchResult(
     val matches: List<TodayMatch>,
 )
 
-class TodayMatchRepository {
-    suspend fun loadTodayMatches(
-        apiKey: String,
-        zoneId: ZoneId = TURKEY_TIME_ZONE,
-        date: LocalDate = LocalDate.now(TURKEY_TIME_ZONE),
-        favoriteTeamNames: Set<String> = emptySet(),
-    ): DailyMatchResult = withContext(Dispatchers.IO) {
-        require(apiKey.isNotBlank()) { "API-Football anahtarı ayarlanmamış." }
+class FootballApiException(
+    val kind: Kind,
+    val statusCode: Int? = null,
+    message: String,
+    cause: Throwable? = null,
+) : IOException(message, cause) {
+    enum class Kind {
+        UNAUTHORIZED,
+        RATE_LIMITED,
+        NETWORK,
+        INVALID_RESPONSE,
+        UNKNOWN,
+    }
+}
 
-        val dateValue = date.toString()
+interface FootballApiClient {
+    suspend fun fetchFixtures(
+        apiKey: String,
+        date: LocalDate,
+        zoneId: ZoneId,
+    ): String
+}
+
+class HttpFootballApiClient(
+    private val connectionFactory: (URL) -> HttpURLConnection = { url ->
+        url.openConnection() as HttpURLConnection
+    },
+) : FootballApiClient {
+    override suspend fun fetchFixtures(
+        apiKey: String,
+        date: LocalDate,
+        zoneId: ZoneId,
+    ): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.UNAUTHORIZED,
+                message = "API-Football anahtarı ayarlanmamış.",
+            )
+        }
+
         val timezoneValue = URLEncoder.encode(zoneId.id, StandardCharsets.UTF_8.name())
         val url = URL(
-            "$BASE_URL/fixtures?date=$dateValue&timezone=$timezoneValue",
+            "$BASE_URL/fixtures?date=$date&timezone=$timezoneValue",
         )
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("x-apisports-key", apiKey.trim())
+        val connection = try {
+            connectionFactory(url).apply {
+                requestMethod = "GET"
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("x-apisports-key", apiKey.trim())
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: IOException) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.NETWORK,
+                message = "API-Football bağlantısı kurulamadı.",
+                cause = error,
+            )
+        } catch (error: Exception) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.UNKNOWN,
+                message = "API-Football bağlantısı başlatılamadı.",
+                cause = error,
+            )
         }
 
         try {
@@ -77,45 +125,124 @@ class TodayMatchRepository {
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
 
             if (responseCode !in 200..299) {
-                val rawMessage = runCatching {
-                    val root = JSONObject(body)
-                    root.optJSONObject("errors")?.let { errors ->
-                        errors.keys().asSequence()
-                            .mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
-                            .joinToString(" • ")
-                    }
-                }.getOrNull()
-                val message = when {
-                    responseCode == 429 -> "API-Football günlük 100 istek kotanız doldu."
-                    responseCode == 401 || responseCode == 403 -> "API-Football anahtarı geçersiz."
-                    else -> rawMessage ?: "Maç verisi alınamadı (HTTP $responseCode)."
-                }
-                throw IllegalStateException(message)
+                throw httpError(responseCode, body)
             }
-
-            val matches = parseResponse(
-                body = body,
-                favoriteTeamNames = favoriteTeamNames,
+            if (body.isBlank()) {
+                throw FootballApiException(
+                    kind = FootballApiException.Kind.INVALID_RESPONSE,
+                    statusCode = responseCode,
+                    message = "API-Football boş yanıt döndürdü.",
+                )
+            }
+            body
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: FootballApiException) {
+            throw error
+        } catch (error: IOException) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.NETWORK,
+                message = "API-Football yanıtı alınamadı.",
+                cause = error,
             )
-            DailyMatchResult(rawJson = body, matches = matches)
+        } catch (error: Exception) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.UNKNOWN,
+                message = "API-Football isteği tamamlanamadı.",
+                cause = error,
+            )
         } finally {
             connection.disconnect()
         }
     }
 
-    fun parseCachedMatches(
-        rawJson: String,
-        date: LocalDate = LocalDate.now(TURKEY_TIME_ZONE),
-        zoneId: ZoneId = TURKEY_TIME_ZONE,
-        favoriteTeamNames: Set<String> = emptySet(),
-    ): List<TodayMatch> {
-        if (rawJson.isBlank()) return emptyList()
-        return runCatching {
-            parseResponse(rawJson, favoriteTeamNames)
-        }.getOrDefault(emptyList())
+    private fun httpError(responseCode: Int, body: String): FootballApiException {
+        val serverMessage = try {
+            JSONObject(body).optJSONObject("errors")?.let { errors ->
+                errors.keys().asSequence()
+                    .mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
+                    .joinToString(" • ")
+            }
+        } catch (_: JSONException) {
+            null
+        }
+
+        val kind = when (responseCode) {
+            401, 403 -> FootballApiException.Kind.UNAUTHORIZED
+            429 -> FootballApiException.Kind.RATE_LIMITED
+            in 500..599 -> FootballApiException.Kind.NETWORK
+            else -> FootballApiException.Kind.UNKNOWN
+        }
+        return FootballApiException(
+            kind = kind,
+            statusCode = responseCode,
+            message = serverMessage ?: "API-Football HTTP $responseCode yanıtı döndürdü.",
+        )
     }
 
-    private fun parseResponse(
+    private companion object {
+        const val BASE_URL = "https://v3.football.api-sports.io"
+        const val CONNECT_TIMEOUT_MS = 8_000
+        const val READ_TIMEOUT_MS = 10_000
+    }
+}
+
+class TodayMatchRepository(
+    private val apiClient: FootballApiClient = HttpFootballApiClient(),
+) : TodayMatchSource {
+    override suspend fun loadTodayMatches(
+        apiKey: String,
+        zoneId: ZoneId,
+        date: LocalDate,
+        favoriteTeamNames: Set<String>,
+    ): DailyMatchResult {
+        val body = apiClient.fetchFixtures(
+            apiKey = apiKey,
+            date = date,
+            zoneId = zoneId,
+        )
+        val matches = try {
+            FootballMatchParser.parse(body, favoriteTeamNames)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: FootballApiException) {
+            throw error
+        } catch (error: JSONException) {
+            throw FootballApiException(
+                kind = FootballApiException.Kind.INVALID_RESPONSE,
+                message = "API-Football geçersiz veri döndürdü.",
+                cause = error,
+            )
+        }
+        return DailyMatchResult(rawJson = body, matches = matches)
+    }
+
+    override fun parseCachedMatches(
+        rawJson: String,
+        favoriteTeamNames: Set<String>,
+    ): List<TodayMatch> {
+        if (rawJson.isBlank()) return emptyList()
+        return try {
+            FootballMatchParser.parse(rawJson, favoriteTeamNames)
+        } catch (_: FootballApiException) {
+            emptyList()
+        } catch (_: JSONException) {
+            emptyList()
+        }
+    }
+
+    internal fun selectMatchesForHome(
+        matches: List<TodayMatch>,
+        favoriteTeamNames: Set<String> = emptySet(),
+    ): List<TodayMatch> = FootballMatchParser.selectMatchesForHome(matches, favoriteTeamNames)
+
+    companion object {
+        val TURKEY_TIME_ZONE: ZoneId = ZoneId.of("Europe/Istanbul")
+    }
+}
+
+private object FootballMatchParser {
+    fun parse(
         body: String,
         favoriteTeamNames: Set<String>,
     ): List<TodayMatch> {
@@ -126,10 +253,17 @@ class TodayMatchRepository {
                 .mapNotNull { key -> errors.optString(key).takeIf(String::isNotBlank) }
                 .joinToString(" • ")
                 .ifBlank { "API-Football isteği reddedildi." }
-            throw IllegalStateException(message)
+            throw FootballApiException(
+                kind = FootballApiException.Kind.INVALID_RESPONSE,
+                message = message,
+            )
         }
 
-        val response = root.optJSONArray("response") ?: return emptyList()
+        val response = root.optJSONArray("response")
+            ?: throw FootballApiException(
+                kind = FootballApiException.Kind.INVALID_RESPONSE,
+                message = "API-Football yanıtında maç listesi bulunamadı.",
+            )
         val matches = buildList {
             for (index in 0 until response.length()) {
                 val item = response.optJSONObject(index) ?: continue
@@ -169,13 +303,10 @@ class TodayMatchRepository {
             }
         }
 
-        return selectMatchesForHome(
-            matches = matches,
-            favoriteTeamNames = favoriteTeamNames,
-        )
+        return selectMatchesForHome(matches, favoriteTeamNames)
     }
 
-    internal fun selectMatchesForHome(
+    fun selectMatchesForHome(
         matches: List<TodayMatch>,
         favoriteTeamNames: Set<String> = emptySet(),
     ): List<TodayMatch> {
@@ -224,44 +355,37 @@ class TodayMatchRepository {
     private fun JSONObject.nullableInt(key: String): Int? =
         if (!has(key) || isNull(key)) null else optInt(key)
 
-    companion object {
-        val TURKEY_TIME_ZONE: ZoneId = ZoneId.of("Europe/Istanbul")
+    private const val MAX_HOME_MATCHES = 12
 
-        private const val BASE_URL = "https://v3.football.api-sports.io"
-        private const val CONNECT_TIMEOUT_MS = 8_000
-        private const val READ_TIMEOUT_MS = 10_000
-        private const val MAX_HOME_MATCHES = 12
+    // Premier League Big Six plus the three Turkish clubs and the two Spanish clubs.
+    private val FEATURED_TEAM_IDS = setOf(
+        33,  // Manchester United
+        40,  // Liverpool
+        42,  // Arsenal
+        47,  // Tottenham Hotspur
+        49,  // Chelsea
+        50,  // Manchester City
+        529, // Barcelona
+        541, // Real Madrid
+        549, // Beşiktaş
+        611, // Fenerbahçe
+        645, // Galatasaray
+    )
 
-        // Premier League Big Six plus the three Turkish clubs and the two Spanish clubs.
-        private val FEATURED_TEAM_IDS = setOf(
-            33,  // Manchester United
-            40,  // Liverpool
-            42,  // Arsenal
-            47,  // Tottenham Hotspur
-            49,  // Chelsea
-            50,  // Manchester City
-            529, // Barcelona
-            541, // Real Madrid
-            549, // Beşiktaş
-            611, // Fenerbahçe
-            645, // Galatasaray
-        )
-
-        private val FEATURED_TEAM_NAMES = setOf(
-            "arsenal",
-            "chelsea",
-            "liverpool",
-            "manchester city",
-            "manchester united",
-            "manchester utd",
-            "man utd",
-            "tottenham",
-            "tottenham hotspur",
-            "barcelona",
-            "real madrid",
-            "besiktas",
-            "fenerbahce",
-            "galatasaray",
-        )
-    }
+    private val FEATURED_TEAM_NAMES = setOf(
+        "arsenal",
+        "chelsea",
+        "liverpool",
+        "manchester city",
+        "manchester united",
+        "manchester utd",
+        "man utd",
+        "tottenham",
+        "tottenham hotspur",
+        "barcelona",
+        "real madrid",
+        "besiktas",
+        "fenerbahce",
+        "galatasaray",
+    )
 }

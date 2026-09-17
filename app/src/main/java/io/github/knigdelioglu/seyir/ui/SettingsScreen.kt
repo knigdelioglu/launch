@@ -1,7 +1,5 @@
 package io.github.knigdelioglu.seyir.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -29,7 +27,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,11 +34,9 @@ import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.AccentMode
 import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
-import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
-import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsScreen(
@@ -63,8 +58,8 @@ fun SettingsScreen(
     val firstFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(120)
-        runCatching { firstFocusRequester.requestFocus() }
+        awaitFocusLayout()
+        requestFocusBestEffort { firstFocusRequester.requestFocus() }
     }
 
     Box(
@@ -88,7 +83,10 @@ fun SettingsScreen(
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
-            SettingsBackAction(onClick = onBack)
+            TvHeaderAction(
+                text = "‹  Ana ekran",
+                onClick = onBack,
+            )
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
@@ -218,28 +216,6 @@ private fun SettingsSectionTitle(text: String) {
 }
 
 @Composable
-private fun SettingsBackAction(onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-
-    Text(
-        text = "‹  Ana ekran",
-        modifier = Modifier
-            .clip(RoundedCornerShape(SeyirRadius.Pill))
-            .background(
-                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .tvDpadClick(onClick = onClick)
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        fontSize = SeyirType.Meta,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
-        color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
-    )
-}
-
-@Composable
 private fun SettingsActionCard(
     title: String,
     description: String,
@@ -248,22 +224,10 @@ private fun SettingsActionCard(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(
-            durationMillis = SeyirMotion.FocusDurationMs,
-            easing = SeyirMotion.FocusEasing,
-        ),
-        label = "settings-action-scale",
-    )
-
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .tvFocusScale(focused, "settings-action-scale")
             .clip(RoundedCornerShape(SeyirRadius.Card))
             .background(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
@@ -309,21 +273,9 @@ private fun SettingsChoiceCard(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
-        animationSpec = tween(
-            durationMillis = SeyirMotion.FocusDurationMs,
-            easing = SeyirMotion.FocusEasing,
-        ),
-        label = "settings-choice-scale",
-    )
-
     Column(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .tvFocusScale(focused, "settings-choice-scale")
             .clip(RoundedCornerShape(SeyirRadius.Card))
             .background(
                 if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,

@@ -30,8 +30,8 @@ jobs:
           gradle-version: '9.7.1'
           cache-provider: basic
 
-      - name: Assemble debug APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Unit tests, lint, and assemble debug APK
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace --no-daemon
 
       - name: Upload debug APK
         if: success()

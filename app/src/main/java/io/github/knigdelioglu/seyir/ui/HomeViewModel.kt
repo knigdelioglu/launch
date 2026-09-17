@@ -7,12 +7,17 @@ import io.github.knigdelioglu.seyir.data.AccentMode
 import io.github.knigdelioglu.seyir.data.FavoriteTeam
 import io.github.knigdelioglu.seyir.data.InstalledApp
 import io.github.knigdelioglu.seyir.data.InstalledAppRepository
+import io.github.knigdelioglu.seyir.data.InstalledAppSource
 import io.github.knigdelioglu.seyir.data.LauncherPreferences
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesRepository
+import io.github.knigdelioglu.seyir.data.LauncherPreferencesSource
 import io.github.knigdelioglu.seyir.data.ThemeMode
 import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.data.TodayMatchRepository
+import io.github.knigdelioglu.seyir.data.TodayMatchSource
+import io.github.knigdelioglu.seyir.data.FootballApiException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +25,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Locale
 
 
@@ -47,10 +51,18 @@ data class HomeUiState(
     val transientMessage: String? = null,
 )
 
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
-    private val appRepository = InstalledAppRepository(application.applicationContext)
-    private val preferencesRepository = LauncherPreferencesRepository(application.applicationContext)
-    private val matchRepository = TodayMatchRepository()
+class HomeViewModel(
+    application: Application,
+    private val appRepository: InstalledAppSource,
+    private val preferencesRepository: LauncherPreferencesSource,
+    private val matchRepository: TodayMatchSource,
+) : AndroidViewModel(application) {
+    constructor(application: Application) : this(
+        application = application,
+        appRepository = InstalledAppRepository(application.applicationContext),
+        preferencesRepository = LauncherPreferencesRepository(application.applicationContext),
+        matchRepository = TodayMatchRepository(),
+    )
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -93,7 +105,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                     )
                 }
-            } catch (error: Throwable) {
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -105,6 +119,43 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshTodayMatches(force: Boolean = false) {
+        val today = LocalDate.now(TodayMatchRepository.TURKEY_TIME_ZONE)
+        val todayValue = today.toString()
+        when (decideMatchRefreshPlan(latestPreferences, todayValue, force)) {
+            MatchRefreshPlan.DISABLED -> {
+                _uiState.update {
+                    it.copy(
+                        sportsApiConfigured = false,
+                        todayMatches = emptyList(),
+                        matchesLoading = false,
+                        matchesError = null,
+                        matchesFetchedAtMillis = 0L,
+                    )
+                }
+                return
+            }
+
+            MatchRefreshPlan.USE_CACHE -> {
+                showCachedMatches(
+                    preferences = latestPreferences,
+                    favoriteTeamNames = latestPreferences.favoriteTeams.mapTo(linkedSetOf()) { it.name },
+                )
+                return
+            }
+
+            MatchRefreshPlan.SKIP_ALREADY_ATTEMPTED -> {
+                _uiState.update {
+                    it.copy(
+                        matchesLoading = false,
+                        matchesError = "Bugünkü maç sorgusu daha önce denendi. Yeniden denemek için sağdaki yenile butonuna basın.",
+                    )
+                }
+                return
+            }
+
+            MatchRefreshPlan.FETCH -> Unit
+        }
+
         val apiKey = latestPreferences.footballApiKey.trim()
         if (apiKey.isBlank()) {
             _uiState.update {
@@ -121,34 +172,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (matchesJob?.isActive == true) return
 
         val zoneId = TodayMatchRepository.TURKEY_TIME_ZONE
-        val today = LocalDate.now(zoneId)
-        val todayValue = today.toString()
         val favoriteTeamNames = latestPreferences.favoriteTeams
             .mapTo(linkedSetOf()) { it.name }
-
-        if (
-            !force &&
-            latestPreferences.dailyMatchCacheDate == todayValue &&
-            latestPreferences.dailyMatchCacheJson.isNotBlank()
-        ) {
-            showCachedMatches(
-                preferences = latestPreferences,
-                date = today,
-                zoneId = zoneId,
-                favoriteTeamNames = favoriteTeamNames,
-            )
-            return
-        }
-
-        if (!force && latestPreferences.dailyMatchAttemptDate == todayValue) {
-            _uiState.update {
-                it.copy(
-                    matchesLoading = false,
-                    matchesError = "Bugünkü maç sorgusu daha önce denendi. Yeniden denemek için sağdaki yenile butonuna basın.",
-                )
-            }
-            return
-        }
 
         matchesJob = viewModelScope.launch {
             _uiState.update {
@@ -185,13 +210,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         matchesFetchedAtMillis = fetchedAt,
                     )
                 }
-            } catch (error: Throwable) {
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
                 _uiState.update {
                     it.copy(
                         todayMatches = emptyList(),
                         matchesLoading = false,
-                        matchesError = error.message
-                            ?: "Bugünün maçları alınamadı. Yarın yeniden denenecek.",
+                        matchesError = matchErrorMessage(error),
                     )
                 }
             }
@@ -347,33 +373,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun showCachedMatches(
         preferences: LauncherPreferences,
-        date: LocalDate,
-        zoneId: ZoneId,
         favoriteTeamNames: Set<String>,
     ) {
-        try {
-            val matches = matchRepository.parseCachedMatches(
-                rawJson = preferences.dailyMatchCacheJson,
-                date = date,
-                zoneId = zoneId,
-                favoriteTeamNames = favoriteTeamNames,
+        val matches = matchRepository.parseCachedMatches(
+            rawJson = preferences.dailyMatchCacheJson,
+            favoriteTeamNames = favoriteTeamNames,
+        )
+        _uiState.update {
+            it.copy(
+                todayMatches = matches,
+                matchesLoading = false,
+                matchesError = null,
+                matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
             )
-            _uiState.update {
-                it.copy(
-                    todayMatches = matches,
-                    matchesLoading = false,
-                    matchesError = null,
-                    matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
-                )
-            }
-        } catch (error: Throwable) {
-            _uiState.update {
-                it.copy(
-                    todayMatches = emptyList(),
-                    matchesLoading = false,
-                    matchesError = "Bugünkü yerel maç önbelleği okunamadı; otomatik yeni sorgu yapılmadı.",
-                )
-            }
         }
     }
 
@@ -405,8 +417,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 ) {
                     showCachedMatches(
                         preferences = preferences,
-                        date = today,
-                        zoneId = TodayMatchRepository.TURKEY_TIME_ZONE,
                         favoriteTeamNames = favoriteNames,
                     )
                 }
@@ -423,16 +433,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         preferences: LauncherPreferences,
         isLoading: Boolean,
     ): HomeUiState {
-        val visibleApps = discoveredApps.filterNot {
-            it.packageName in preferences.hiddenPackages
-        }
-        val hiddenApps = discoveredApps.filter {
-            it.packageName in preferences.hiddenPackages
-        }
+        val packageState = deriveLauncherAppPackageState(
+            availablePackageNames = discoveredApps.map { it.packageName },
+            preferences = preferences,
+        )
+        val appsByPackage = discoveredApps.associateBy { it.packageName }
+        val visibleApps = packageState.visiblePackageNames.mapNotNull(appsByPackage::get)
+        val hiddenApps = packageState.hiddenPackageNames.mapNotNull(appsByPackage::get)
         val visibleAppByPackage = visibleApps.associateBy { it.packageName }
 
         val favoriteApps = if (preferences.favoritesInitialized) {
-            preferences.favoritePackages.mapNotNull(visibleAppByPackage::get)
+            packageState.favoritePackageNames.mapNotNull(visibleAppByPackage::get)
         } else {
             visibleApps.take(DEFAULT_FAVORITE_COUNT)
         }
@@ -442,8 +453,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             apps = visibleApps,
             hiddenApps = hiddenApps,
             favoriteApps = favoriteApps,
-            favoritePackageNames = preferences.favoritePackages,
-            hiddenPackageNames = preferences.hiddenPackages,
+            favoritePackageNames = packageState.favoritePackageNames,
+            hiddenPackageNames = packageState.hiddenPackageNames,
             themeMode = preferences.themeMode,
             accentMode = preferences.accentMode,
             reducedMotion = preferences.reducedMotion,
@@ -457,6 +468,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun stableTeamId(name: String): Int {
         val value = name.trim().lowercase(Locale.ROOT).hashCode() and Int.MAX_VALUE
         return if (value == 0) 1 else value
+    }
+
+    private fun matchErrorMessage(error: Exception): String = when (error) {
+        is FootballApiException -> when (error.kind) {
+            FootballApiException.Kind.UNAUTHORIZED -> "API-Football anahtarı geçersiz."
+            FootballApiException.Kind.RATE_LIMITED -> "API-Football günlük istek kotası doldu."
+            FootballApiException.Kind.NETWORK -> "Maç verisine ulaşılamadı; bağlantınızı kontrol edin."
+            FootballApiException.Kind.INVALID_RESPONSE -> "Maç servisi geçersiz veri döndürdü."
+            FootballApiException.Kind.UNKNOWN -> "Bugünün maçları alınamadı. Yarın yeniden denenecek."
+        }
+
+        else -> error.message ?: "Bugünün maçları alınamadı. Yarın yeniden denenecek."
     }
 
     private companion object {

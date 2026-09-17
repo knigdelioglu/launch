@@ -1,10 +1,15 @@
 package io.github.knigdelioglu.seyir.ui
 
 import android.view.KeyEvent as AndroidKeyEvent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import io.github.knigdelioglu.seyir.ui.theme.SeyirMotion
 
 /**
  * Compose's generic clickable handles ENTER on the TV box, but some remotes
@@ -29,6 +34,25 @@ fun Modifier.tvDpadClick(
         } else {
             false
         }
+    }
+}
+
+@Composable
+fun Modifier.tvFocusScale(
+    focused: Boolean,
+    label: String,
+): Modifier {
+    val scale = animateFloatAsState(
+        targetValue = if (focused) SeyirMotion.FocusScale else 1f,
+        animationSpec = tween(
+            durationMillis = SeyirMotion.FocusDurationMs,
+            easing = SeyirMotion.FocusEasing,
+        ),
+        label = label,
+    ).value
+    return graphicsLayer {
+        scaleX = scale
+        scaleY = scale
     }
 }
 
