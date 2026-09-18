@@ -383,19 +383,25 @@ private object FootballMatchParser {
     }
 
     private fun TodayMatch.isFeaturedMatch(): Boolean =
-        homeTeamId in FEATURED_TEAM_IDS || awayTeamId in FEATURED_TEAM_IDS ||
-            normalizeName(homeTeam) in FEATURED_TEAM_NAMES ||
-            normalizeName(awayTeam) in FEATURED_TEAM_NAMES
+        isFeaturedTeam(homeTeamId, homeTeam) || isFeaturedTeam(awayTeamId, awayTeam)
+
+    private fun isFeaturedTeam(teamId: Int, teamName: String): Boolean {
+        val canonicalName = canonicalTeamName(teamName)
+        val expectedCanonicalName = FEATURED_TEAM_IDS[teamId]
+        if (expectedCanonicalName != null) {
+            return canonicalName == expectedCanonicalName
+        }
+        return canonicalName in FEATURED_TEAM_NAMES
+    }
 
     private fun TodayMatch.involvesFavorite(normalizedFavorites: Set<String>): Boolean {
         if (normalizedFavorites.isEmpty()) return false
-        val home = normalizeName(homeTeam)
-        val away = normalizeName(awayTeam)
-        return normalizedFavorites.any { favorite ->
-            favorite == home || favorite == away ||
-                home.contains(favorite) || away.contains(favorite) ||
-                favorite.contains(home) || favorite.contains(away)
-        }
+        val home = canonicalTeamName(homeTeam)
+        val away = canonicalTeamName(awayTeam)
+        return normalizedFavorites
+            .asSequence()
+            .map(::canonicalTeamName)
+            .any { favorite -> favorite == home || favorite == away }
     }
 
     private fun normalizeName(value: String): String = Normalizer
@@ -410,37 +416,39 @@ private object FootballMatchParser {
     private fun JSONObject.nullableInt(key: String): Int? =
         if (!has(key) || isNull(key)) null else optInt(key)
 
+    private fun canonicalTeamName(value: String): String {
+        val normalized = normalizeName(value)
+        return TEAM_NAME_ALIASES[normalized] ?: normalized
+    }
+
     private const val MAX_HOME_MATCHES = 12
 
-    // Premier League Big Six plus the three Turkish clubs and the two Spanish clubs.
-    private val FEATURED_TEAM_IDS = setOf(
-        33,  // Manchester United
-        40,  // Liverpool
-        42,  // Arsenal
-        47,  // Tottenham Hotspur
-        49,  // Chelsea
-        50,  // Manchester City
-        529, // Barcelona
-        541, // Real Madrid
-        549, // Beşiktaş
-        611, // Fenerbahçe
-        645, // Galatasaray
+    // API-Football IDs are checked together with the canonical club name so an
+    // unrelated club can never become featured merely because of a bad/stale ID.
+    private val FEATURED_TEAM_IDS = mapOf(
+        33 to "manchester united",
+        40 to "liverpool",
+        42 to "arsenal",
+        47 to "tottenham hotspur",
+        49 to "chelsea",
+        50 to "manchester city",
+        529 to "barcelona",
+        541 to "real madrid",
+        549 to "besiktas",
+        611 to "fenerbahce",
+        645 to "galatasaray",
     )
 
-    private val FEATURED_TEAM_NAMES = setOf(
-        "arsenal",
-        "chelsea",
-        "liverpool",
-        "manchester city",
-        "manchester united",
-        "manchester utd",
-        "man utd",
-        "tottenham",
-        "tottenham hotspur",
-        "barcelona",
-        "real madrid",
-        "besiktas",
-        "fenerbahce",
-        "galatasaray",
+    private val FEATURED_TEAM_NAMES = FEATURED_TEAM_IDS.values.toSet()
+
+    private val TEAM_NAME_ALIASES = mapOf(
+        "arsenal fc" to "arsenal",
+        "manchester utd" to "manchester united",
+        "man utd" to "manchester united",
+        "tottenham" to "tottenham hotspur",
+        "fc barcelona" to "barcelona",
+        "besiktas jk" to "besiktas",
+        "fenerbahce sk" to "fenerbahce",
+        "galatasaray sk" to "galatasaray",
     )
 }
