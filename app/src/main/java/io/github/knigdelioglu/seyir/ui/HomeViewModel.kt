@@ -140,6 +140,8 @@ class HomeViewModel(
         val todayValue = today.toString()
         when (decideMatchRefreshPlan(latestPreferences, todayValue, force)) {
             MatchRefreshPlan.DISABLED -> {
+                cachedMatchesJob?.cancel()
+                cachedMatchesJob = null
                 renderedMatchCacheKey = null
                 _uiState.update {
                     it.copy(
@@ -199,6 +201,8 @@ class HomeViewModel(
         val favoriteTeamNames = latestPreferences.favoriteTeams
             .mapTo(linkedSetOf()) { it.name }
 
+        cachedMatchesJob?.cancel()
+        cachedMatchesJob = null
         renderedMatchCacheKey = null
         matchesJob = viewModelScope.launch {
             _uiState.update {
