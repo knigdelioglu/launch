@@ -228,7 +228,7 @@ class HomeViewModel(
                 renderedMatchCacheKey = MatchCacheKey(
                     date = todayValue,
                     rawJson = result.rawJson,
-                    favoriteTeamNames = favoriteTeamNames,
+                    favoriteTeamNames = favoriteTeamNames.toSet(),
                 )
                 preferencesRepository.saveDailyMatchCache(
                     date = todayValue,
