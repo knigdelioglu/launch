@@ -145,6 +145,8 @@ class HomeViewModel(
     }
 
     fun refreshTodayMatches(force: Boolean = false) {
+        if (!hasObservedPreferences && !force) return
+
         val today = LocalDate.now(TodayMatchRepository.TURKEY_TIME_ZONE)
         val todayValue = today.toString()
         when (decideMatchRefreshPlan(latestPreferences, todayValue, force)) {
@@ -165,9 +167,20 @@ class HomeViewModel(
             }
 
             MatchRefreshPlan.USE_CACHE -> {
+                val preferences = latestPreferences
+                val favoriteTeamNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
+                val currentMatches = _uiState.value.todayMatches
+                val currentKey = renderedMatchCacheKey
+                if (
+                    currentMatches.isNotEmpty() &&
+                    currentKey?.date == preferences.dailyMatchCacheDate &&
+                    currentKey.rawJson == preferences.dailyMatchCacheJson &&
+                    currentKey.favoriteTeamNames == favoriteTeamNames
+                ) {
+                    return
+                }
+
                 if (cachedMatchesJob?.isActive != true) {
-                    val preferences = latestPreferences
-                    val favoriteTeamNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
                     cachedMatchesJob = viewModelScope.launch {
                         showCachedMatches(
                             preferences = preferences,
@@ -441,7 +454,7 @@ class HomeViewModel(
             rawJson = preferences.dailyMatchCacheJson,
             favoriteTeamNames = favoriteTeamNames.toSet(),
         )
-        if (cacheKey == renderedMatchCacheKey) return
+        if (cacheKey == renderedMatchCacheKey && _uiState.value.todayMatches.isNotEmpty()) return
 
         val matches = matchRepository.parseCachedMatches(
             rawJson = preferences.dailyMatchCacheJson,
@@ -486,7 +499,7 @@ class HomeViewModel(
                     preferences.dailyMatchCacheDate == todayValue &&
                         preferences.dailyMatchCacheJson.isNotBlank()
 
-                if ((favoriteTeamsChanged || cacheChanged) && hasTodayCache) {
+                if (hasTodayCache && (favoriteTeamsChanged || cacheChanged || _uiState.value.todayMatches.isEmpty())) {
                     showCachedMatches(
                         preferences = preferences,
                         favoriteTeamNames = favoriteNames,

@@ -192,10 +192,6 @@ class HttpFootballApiClient(
 class TodayMatchRepository(
     private val apiClient: FootballApiClient = HttpFootballApiClient(),
 ) : TodayMatchSource {
-    private val cachedParseMutex = Mutex()
-    private var cachedRawJson: String? = null
-    private var cachedFavoriteTeamNames: Set<String> = emptySet()
-    private var cachedMatches: List<TodayMatch> = emptyList()
 
     override suspend fun loadTodayMatches(
         apiKey: String,
@@ -293,6 +289,16 @@ class TodayMatchRepository(
 
     companion object {
         val TURKEY_TIME_ZONE: ZoneId = ZoneId.of("Europe/Istanbul")
+        private val cachedParseMutex = Mutex()
+        private var cachedRawJson: String? = null
+        private var cachedFavoriteTeamNames: Set<String> = emptySet()
+        private var cachedMatches: List<TodayMatch> = emptyList()
+
+        internal fun clearMemoryCache() {
+            cachedRawJson = null
+            cachedFavoriteTeamNames = emptySet()
+            cachedMatches = emptyList()
+        }
     }
 }
 
@@ -382,20 +388,38 @@ private object FootballMatchParser {
             .take(MAX_HOME_MATCHES)
     }
 
-    private fun TodayMatch.isFeaturedMatch(): Boolean =
-        isFeaturedTeam(homeTeamId, homeTeam) || isFeaturedTeam(awayTeamId, awayTeam)
+    private fun TodayMatch.isFeaturedMatch(): Boolean {
+        if (homeTeamId in EXCLUDED_TEAM_IDS || awayTeamId in EXCLUDED_TEAM_IDS) return false
+        val homeNorm = normalizeName(homeTeam)
+        val awayNorm = normalizeName(awayTeam)
+        if (EXCLUDED_NAME_KEYWORDS.any { homeNorm.contains(it) || awayNorm.contains(it) }) return false
+        return isFeaturedTeam(homeTeamId, homeTeam) || isFeaturedTeam(awayTeamId, awayTeam)
+    }
 
     private fun isFeaturedTeam(teamId: Int, teamName: String): Boolean {
+        if (teamId in EXCLUDED_TEAM_IDS) return false
         val canonicalName = canonicalTeamName(teamName)
+        if (EXCLUDED_NAME_KEYWORDS.any { canonicalName.contains(it) }) return false
+
         val expectedCanonicalName = FEATURED_TEAM_IDS[teamId]
         if (expectedCanonicalName != null) {
             return canonicalName == expectedCanonicalName
         }
+
+        val expectedTeamId = FEATURED_TEAM_IDS_BY_CANONICAL_NAME[canonicalName]
+        if (expectedTeamId != null) {
+            return teamId == 0 || teamId == expectedTeamId
+        }
+
         return canonicalName in FEATURED_TEAM_NAMES
     }
 
     private fun TodayMatch.involvesFavorite(normalizedFavorites: Set<String>): Boolean {
         if (normalizedFavorites.isEmpty()) return false
+        if (homeTeamId in EXCLUDED_TEAM_IDS || awayTeamId in EXCLUDED_TEAM_IDS) return false
+        val homeNorm = normalizeName(homeTeam)
+        val awayNorm = normalizeName(awayTeam)
+        if (EXCLUDED_NAME_KEYWORDS.any { homeNorm.contains(it) || awayNorm.contains(it) }) return false
         val home = canonicalTeamName(homeTeam)
         val away = canonicalTeamName(awayTeam)
         return normalizedFavorites
@@ -423,6 +447,9 @@ private object FootballMatchParser {
 
     private const val MAX_HOME_MATCHES = 12
 
+    private val EXCLUDED_TEAM_IDS = setOf(9419)
+    private val EXCLUDED_NAME_KEYWORDS = listOf("dzerzhinsk")
+
     // API-Football IDs are checked together with the canonical club name so an
     // unrelated club can never become featured merely because of a bad/stale ID.
     private val FEATURED_TEAM_IDS = mapOf(
@@ -440,6 +467,8 @@ private object FootballMatchParser {
     )
 
     private val FEATURED_TEAM_NAMES = FEATURED_TEAM_IDS.values.toSet()
+    private val FEATURED_TEAM_IDS_BY_CANONICAL_NAME =
+        FEATURED_TEAM_IDS.entries.associate { (id, name) -> name to id }
 
     private val TEAM_NAME_ALIASES = mapOf(
         "arsenal fc" to "arsenal",

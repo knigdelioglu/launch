@@ -46,6 +46,42 @@ class TodayMatchRepositoryTest {
     }
 
     @Test
+    fun arsenalDzerzhinsk_withTeamId9419AndNameArsenal_isExcluded() {
+        val selected = repository.selectMatchesForHome(
+            listOf(
+                match(
+                    fixtureId = 101,
+                    kickoffEpochSeconds = 1_000,
+                    homeTeamId = 7808,
+                    homeTeam = "ML Vitebsk",
+                    awayTeamId = 9419,
+                    awayTeam = "Arsenal",
+                ),
+            ),
+        )
+
+        assertTrue(selected.isEmpty())
+    }
+
+    @Test
+    fun realArsenal_withTeamId42_isSelected() {
+        val selected = repository.selectMatchesForHome(
+            listOf(
+                match(
+                    fixtureId = 102,
+                    kickoffEpochSeconds = 1_000,
+                    homeTeamId = 55,
+                    homeTeam = "Brentford",
+                    awayTeamId = 42,
+                    awayTeam = "Arsenal",
+                ),
+            ),
+        )
+
+        assertEquals(listOf(102L), selected.map { it.fixtureId })
+    }
+
+    @Test
     fun selectMatchesForHome_usesTeamNameWhenApiIdIsMissing() {
         val selected = repository.selectMatchesForHome(
             listOf(
@@ -204,14 +240,16 @@ class TodayMatchRepositoryTest {
         homeTeamId: Int,
         homeTeam: String,
         statusShort: String = "NS",
+        awayTeamId: Int = 999,
+        awayTeam: String = "Test Away",
     ) = TodayMatch(
         fixtureId = fixtureId,
         leagueName = "Test League",
         countryName = "Test Country",
         homeTeamId = homeTeamId,
         homeTeam = homeTeam,
-        awayTeamId = 999,
-        awayTeam = "Test Away",
+        awayTeamId = awayTeamId,
+        awayTeam = awayTeam,
         kickoffEpochSeconds = kickoffEpochSeconds,
         statusShort = statusShort,
         statusLong = "Not Started",
