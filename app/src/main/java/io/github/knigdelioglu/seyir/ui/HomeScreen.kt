@@ -66,6 +66,7 @@ import java.time.format.DateTimeFormatter
 
 object HomeFocusKey {
     const val ALL_APPS = "__all_apps__"
+    const val APPEARANCE_SETTINGS = "__appearance_settings__"
     const val SETTINGS = "__settings__"
 }
 
@@ -79,6 +80,7 @@ fun HomeScreen(
     onToggleFavorite: (InstalledApp) -> Unit,
     onOpenAllApps: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenAppearanceSettings: () -> Unit,
     onRetry: () -> Unit,
     onRefreshMatches: () -> Unit,
     onDismissMessage: () -> Unit,
@@ -89,6 +91,7 @@ fun HomeScreen(
         homeApps.associate { it.packageName to FocusRequester() }
     }
     val allAppsFocusRequester = remember { FocusRequester() }
+    val appearanceSettingsFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     val favoritesListState = rememberLazyListState()
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
@@ -119,7 +122,9 @@ fun HomeScreen(
         itemKeys = if (uiState.apps.isEmpty()) {
             emptyList()
         } else {
-            homeApps.map { it.packageName } + HomeFocusKey.ALL_APPS
+            homeApps.map { it.packageName } +
+                HomeFocusKey.ALL_APPS +
+                HomeFocusKey.APPEARANCE_SETTINGS
         },
         focusTarget = effectiveFocusTarget,
         request = restoreRequest,
@@ -129,6 +134,7 @@ fun HomeScreen(
             focusTarget = latestFocusTarget,
             favoriteFocusRequesters = favoriteFocusRequesters,
             allAppsFocusRequester = allAppsFocusRequester,
+            appearanceSettingsFocusRequester = appearanceSettingsFocusRequester,
             settingsFocusRequester = settingsFocusRequester,
             favoritesListState = favoritesListState,
         )
@@ -258,6 +264,23 @@ fun HomeScreen(
                                 onRefresh = onRefreshMatches,
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
+                        TvAction(
+                            text = "Görünüm ayarları",
+                            onClick = onOpenAppearanceSettings,
+                            modifier = Modifier
+                                .padding(horizontal = SeyirSpacing.ScreenHorizontal)
+                                .focusRequester(appearanceSettingsFocusRequester)
+                                .onFocusChanged {
+                                    if (it.isFocused) {
+                                        initialFocusLanded = true
+                                        onFocusTargetChanged(HomeFocusKey.APPEARANCE_SETTINGS)
+                                    }
+                                },
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 11.dp),
+                            unfocusedFontWeight = FontWeight.Medium,
+                        )
                     }
 
                     uiState.isLoading -> Box(modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal)) {
@@ -515,11 +538,16 @@ private suspend fun requestHomeFocus(
     focusTarget: String?,
     favoriteFocusRequesters: Map<String, FocusRequester>,
     allAppsFocusRequester: FocusRequester,
+    appearanceSettingsFocusRequester: FocusRequester,
     settingsFocusRequester: FocusRequester,
     favoritesListState: LazyListState,
 ) {
     if (focusTarget == HomeFocusKey.SETTINGS) {
         requestFocusBestEffort { settingsFocusRequester.requestFocus() }
+        return
+    }
+    if (focusTarget == HomeFocusKey.APPEARANCE_SETTINGS) {
+        requestFocusBestEffort { appearanceSettingsFocusRequester.requestFocus() }
         return
     }
 
