@@ -233,33 +233,38 @@ class TodayMatchRepository(
     override suspend fun parseCachedMatches(
         rawJson: String,
         favoriteTeamNames: Set<String>,
-    ): List<TodayMatch> = cachedParseMutex.withLock {
-        val normalizedFavoriteTeamNames = favoriteTeamNames.toSet()
-        if (
-            rawJson == cachedRawJson &&
-            normalizedFavoriteTeamNames == cachedFavoriteTeamNames
-        ) {
-            return@withLock cachedMatches
-        }
-
-        val matches = if (rawJson.isBlank()) {
-            emptyList()
-        } else {
-            try {
-                parseMatchesOffMain(rawJson, normalizedFavoriteTeamNames)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: FootballApiException) {
-                emptyList()
-            } catch (_: JSONException) {
-                emptyList()
+    ): List<TodayMatch> {
+        cachedParseMutex.lock()
+        try {
+            val normalizedFavoriteTeamNames = favoriteTeamNames.toSet()
+            if (
+                rawJson == cachedRawJson &&
+                normalizedFavoriteTeamNames == cachedFavoriteTeamNames
+            ) {
+                return cachedMatches
             }
-        }
 
-        cachedRawJson = rawJson
-        cachedFavoriteTeamNames = normalizedFavoriteTeamNames
-        cachedMatches = matches
-        matches
+            val matches = if (rawJson.isBlank()) {
+                emptyList()
+            } else {
+                try {
+                    parseMatchesOffMain(rawJson, normalizedFavoriteTeamNames)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: FootballApiException) {
+                    emptyList()
+                } catch (_: JSONException) {
+                    emptyList()
+                }
+            }
+
+            cachedRawJson = rawJson
+            cachedFavoriteTeamNames = normalizedFavoriteTeamNames
+            cachedMatches = matches
+            return matches
+        } finally {
+            cachedParseMutex.unlock()
+        }
     }
 
     private suspend fun parseMatchesOffMain(
