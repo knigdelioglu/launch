@@ -30,23 +30,23 @@ data class SeyirMotionTokens(
 )
 
 internal val DefaultSeyirPalette = SeyirPalette(
-    backgroundTop = Color(0xFF111116),
-    backgroundMiddle = Color(0xFF09090C),
-    backgroundBottom = Color(0xFF050507),
-    surface = Color(0xFF15151B),
-    surfaceElevated = Color(0xFF1B1B22),
-    surfaceSoft = Color.White.copy(alpha = 0.055f),
-    surfaceFocused = Color.White.copy(alpha = 0.145f),
-    textPrimary = Color.White,
-    textSecondary = Color.White.copy(alpha = 0.68f),
-    textTertiary = Color.White.copy(alpha = 0.44f),
-    hairline = Color.White.copy(alpha = 0.09f),
-    accent = Color.White,
+    backgroundTop = Color(0xFFA8C7FA),
+    backgroundMiddle = Color(0xFFA8C7FA),
+    backgroundBottom = Color(0xFFA8C7FA),
+    surface = Color.White.copy(alpha = 0.85f),
+    surfaceElevated = Color.White,
+    surfaceSoft = Color.White.copy(alpha = 0.20f),
+    surfaceFocused = Color.White.copy(alpha = 0.35f),
+    textPrimary = Color(0xFF0F172A),
+    textSecondary = Color(0xFF334155),
+    textTertiary = Color(0xFF64748B),
+    hairline = Color(0xFF0F172A).copy(alpha = 0.12f),
+    accent = Color(0xFF1D4ED8),
 )
 
 internal val DefaultSeyirMotion = SeyirMotionTokens(
-    focusScale = 1.06f,
-    focusDurationMs = 160,
+    focusScale = 1.05f,
+    focusDurationMs = 120,
     focusEasing = FastOutSlowInEasing,
 )
 
@@ -81,8 +81,8 @@ object SeyirColors {
 }
 
 object SeyirSpacing {
-    val ScreenHorizontal = 64.dp
-    val ScreenVertical = 40.dp
+    val ScreenHorizontal = 100.dp
+    val ScreenVertical = 32.dp
     val SectionLarge = 48.dp
     val Section = 28.dp
     val Item = 18.dp

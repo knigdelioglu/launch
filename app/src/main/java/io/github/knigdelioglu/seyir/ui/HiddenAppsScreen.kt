@@ -2,6 +2,7 @@ package io.github.knigdelioglu.seyir.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -34,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
@@ -200,7 +203,7 @@ private fun HiddenAppCard(
             .tvDpadClick(onClick = onRestore)
             .focusable()
             .clickable(onClick = onRestore),
-        horizontalAlignment = Alignment.Start,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
@@ -208,10 +211,11 @@ private fun HiddenAppCard(
                     width = SeyirSize.AppCardWidth,
                     height = SeyirSize.AppCardHeight,
                 )
-                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-                ),
+                    color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                    shape = RoundedCornerShape(SeyirRadius.Card),
+                )
+                .tvFocusedChasingBorder(focused = focused),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -223,6 +227,8 @@ private fun HiddenAppCard(
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = SeyirType.CardLabel,

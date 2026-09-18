@@ -3,6 +3,7 @@ package io.github.knigdelioglu.seyir.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
@@ -32,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +43,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,6 +93,27 @@ fun HomeScreen(
     val favoritesListState = rememberLazyListState()
     var contextApp by remember { mutableStateOf<InstalledApp?>(null) }
     var restoreRequest by remember { mutableStateOf(FocusRestoreRequest()) }
+    var initialFocusLanded by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(homeApps.map { it.packageName }) {
+        if (!initialFocusLanded && homeApps.isNotEmpty()) {
+            awaitFocusLayout()
+            val firstPackage = homeApps.first().packageName
+            favoriteFocusRequesters[firstPackage]?.let { requester ->
+                requestFocusBestEffort {
+                    requester.requestFocus()
+                    initialFocusLanded = true
+                    onFocusTargetChanged(firstPackage)
+                }
+            }
+        }
+    }
+
+    val effectiveFocusTarget = if (!initialFocusLanded && focusTarget == HomeFocusKey.SETTINGS) {
+        null
+    } else {
+        focusTarget
+    }
 
     FocusRestoreEffect(
         itemKeys = if (uiState.apps.isEmpty()) {
@@ -96,7 +121,7 @@ fun HomeScreen(
         } else {
             homeApps.map { it.packageName } + HomeFocusKey.ALL_APPS
         },
-        focusTarget = focusTarget,
+        focusTarget = effectiveFocusTarget,
         request = restoreRequest,
     ) { latestFocusTarget ->
         requestHomeFocus(
@@ -140,15 +165,19 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    horizontal = SeyirSpacing.ScreenHorizontal,
                     vertical = SeyirSpacing.ScreenVertical,
                 ),
         ) {
             TopBar(
                 clock = clock,
                 settingsFocusRequester = settingsFocusRequester,
-                onSettingsFocused = { onFocusTargetChanged(HomeFocusKey.SETTINGS) },
+                onSettingsFocused = {
+                    if (initialFocusLanded) {
+                        onFocusTargetChanged(HomeFocusKey.SETTINGS)
+                    }
+                },
                 onOpenSettings = onOpenSettings,
+                modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
             )
 
             Column(
@@ -156,43 +185,40 @@ fun HomeScreen(
                     .weight(1f)
                     .verticalScroll(scrollState),
             ) {
-                Spacer(modifier = Modifier.height(SeyirSpacing.Section))
-
-                Text(
-                    text = greetingFor(LocalTime.now()),
-                    fontSize = SeyirType.Hero,
-                    fontWeight = FontWeight.SemiBold,
-                    color = SeyirColors.TextPrimary,
-                )
-                Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
-                Text(
-                    text = "İzlemek istediğiniz şeye doğrudan geçin.",
-                    fontSize = SeyirType.Subtitle,
-                    color = SeyirColors.TextSecondary,
-                )
-
-                Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+                Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
 
                 when {
                     uiState.apps.isNotEmpty() -> {
                         SectionHeader(
                             title = "Favoriler",
+                            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
                         )
-                        Spacer(modifier = Modifier.height(SeyirSpacing.Item))
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
 
                         LazyRow(
                             state = favoritesListState,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(
+                                start = SeyirSpacing.ScreenHorizontal,
+                                end = SeyirSpacing.ScreenHorizontal,
+                                top = 8.dp,
+                                bottom = 8.dp,
+                            ),
                             horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Item),
                         ) {
                             itemsIndexed(
                                 items = homeApps,
                                 key = { _, app -> app.packageName },
-                            ) { _, app ->
+                            ) { index, app ->
                                 AppCard(
                                     app = app,
+                                    isFirst = index == 0,
                                     onClick = { onAppClick(app) },
                                     onLongClick = { contextApp = app },
-                                    onFocused = { onFocusTargetChanged(app.packageName) },
+                                    onFocused = {
+                                        initialFocusLanded = true
+                                        onFocusTargetChanged(app.packageName)
+                                    },
                                     modifier = Modifier.focusRequester(
                                         favoriteFocusRequesters.getValue(app.packageName),
                                     ),
@@ -204,7 +230,10 @@ fun HomeScreen(
                                     label = "Tüm Uygulamalar",
                                     symbol = "▦",
                                     onClick = onOpenAllApps,
-                                    onFocused = { onFocusTargetChanged(HomeFocusKey.ALL_APPS) },
+                                    onFocused = {
+                                        initialFocusLanded = true
+                                        onFocusTargetChanged(HomeFocusKey.ALL_APPS)
+                                    },
                                     modifier = Modifier.focusRequester(allAppsFocusRequester),
                                 )
                             }
@@ -216,11 +245,12 @@ fun HomeScreen(
                                 text = "Favori yok. Tüm Uygulamalar bölümünden ekleyebilirsiniz.",
                                 fontSize = SeyirType.Meta,
                                 color = SeyirColors.TextTertiary,
+                                modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
                             )
                         }
 
                         if (uiState.sportsApiConfigured) {
-                            Spacer(modifier = Modifier.height(SeyirSpacing.Section))
+                            Spacer(modifier = Modifier.height(SeyirSpacing.Item))
                             TodayMatchesSection(
                                 matches = uiState.todayMatches,
                                 loading = uiState.matchesLoading,
@@ -230,26 +260,29 @@ fun HomeScreen(
                         }
                     }
 
-                    uiState.isLoading -> LoadingState()
-                    uiState.errorMessage != null -> ErrorState(
-                        message = uiState.errorMessage,
-                        onRetry = onRetry,
-                    )
-                    else -> EmptyState()
+                    uiState.isLoading -> Box(modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal)) {
+                        LoadingState()
+                    }
+                    uiState.errorMessage != null -> Box(modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal)) {
+                        ErrorState(
+                            message = uiState.errorMessage,
+                            onRetry = onRetry,
+                        )
+                    }
+                    else -> Box(modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal)) {
+                        EmptyState()
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(SeyirSpacing.SectionLarge))
+                Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SeyirSpacing.ScreenHorizontal),
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = "Yerel  •  Reklamsız  •  Hesapsız",
-                        fontSize = SeyirType.Meta,
-                        color = SeyirColors.TextTertiary,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = "${uiState.apps.size} uygulama",
                         fontSize = SeyirType.Meta,
@@ -321,7 +354,9 @@ private fun TodayMatchesSection(
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SeyirSpacing.ScreenHorizontal),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -352,45 +387,68 @@ private fun TodayMatchesSection(
             text = "Maçlar hazırlanıyor…",
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
         )
 
         error != null && visibleMatches.isEmpty() -> Text(
             text = error,
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
         )
 
         visibleMatches.isEmpty() -> Text(
             text = "Şu anda oynanan veya daha sonra başlayacak maç bulunamadı.",
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
         )
 
         else -> LazyRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Compact),
-            contentPadding = PaddingValues(vertical = 4.dp),
+            contentPadding = PaddingValues(
+                start = SeyirSpacing.ScreenHorizontal,
+                end = SeyirSpacing.ScreenHorizontal,
+                top = 4.dp,
+                bottom = 4.dp,
+            ),
         ) {
-            items(
+            itemsIndexed(
                 items = visibleMatches,
-                key = { it.fixtureId },
-            ) { match ->
-                TodayMatchCard(match)
+                key = { _, match -> match.fixtureId },
+            ) { index, match ->
+                TodayMatchCard(
+                    match = match,
+                    isFirst = index == 0,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TodayMatchCard(match: TodayMatch) {
+private fun TodayMatchCard(
+    match: TodayMatch,
+    isFirst: Boolean = false,
+) {
     var focused by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .width(214.dp)
-            .tvFocusScale(focused, "today-match-card-scale")
-            .clip(RoundedCornerShape(SeyirRadius.Action))
+            .tvFocusScale(
+                focused = focused,
+                label = "today-match-card-scale",
+                scaleOrigin = if (isFirst) TransformOrigin(0f, 0.5f) else TransformOrigin.Center,
+            )
             .background(
-                if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                shape = RoundedCornerShape(SeyirRadius.Action),
+            )
+            .tvFocusedChasingBorder(
+                focused = focused,
+                cornerRadius = SeyirRadius.Action,
             )
             .onFocusChanged { focused = it.isFocused }
             .focusable()
@@ -468,7 +526,7 @@ private suspend fun requestHomeFocus(
     val itemKeys = homeApps.map { it.packageName } + HomeFocusKey.ALL_APPS
     restoreItemFocus(
         itemKeys = itemKeys,
-        focusTarget = focusTarget,
+        focusTarget = focusTarget ?: homeApps.firstOrNull()?.packageName,
         isItemVisible = { targetIndex ->
             favoritesListState.layoutInfo.visibleItemsInfo.any { it.index == targetIndex }
         },
@@ -489,19 +547,12 @@ private fun TopBar(
     settingsFocusRequester: FocusRequester,
     onSettingsFocused: () -> Unit,
     onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "SEYİR",
-            fontSize = SeyirType.Brand,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp,
-            color = SeyirColors.TextPrimary.copy(alpha = 0.92f),
-        )
-
         Spacer(modifier = Modifier.weight(1f))
 
         TopBarAction(
@@ -566,9 +617,10 @@ private fun TopBarAction(
 private fun SectionHeader(
     title: String,
     meta: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -596,22 +648,31 @@ private fun AppCard(
     onLongClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    isFirst: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .width(SeyirSize.AppCardWidth)
-            .tvFocusScale(focused, "app-card-scale")
+            .tvFocusScale(
+                focused = focused,
+                label = "app-card-scale",
+                scaleOrigin = if (isFirst) TransformOrigin(0f, 0.5f) else TransformOrigin.Center,
+            )
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .tvDpadClick(onClick = onClick)
+            .tvDpadClick(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .focusable()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             ),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
@@ -619,10 +680,11 @@ private fun AppCard(
                     width = SeyirSize.AppCardWidth,
                     height = SeyirSize.AppCardHeight,
                 )
-                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-                ),
+                    color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                    shape = RoundedCornerShape(SeyirRadius.Card),
+                )
+                .tvFocusedChasingBorder(focused = focused),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -634,6 +696,8 @@ private fun AppCard(
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = SeyirType.CardLabel,
@@ -663,6 +727,7 @@ private fun ActionCard(
             .tvDpadClick(onClick = onClick)
             .focusable()
             .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
@@ -670,10 +735,11 @@ private fun ActionCard(
                     width = SeyirSize.AppCardWidth,
                     height = SeyirSize.AppCardHeight,
                 )
-                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-                ),
+                    color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                    shape = RoundedCornerShape(SeyirRadius.Card),
+                )
+                .tvFocusedChasingBorder(focused = focused),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -686,6 +752,8 @@ private fun ActionCard(
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = SeyirType.CardLabel,
@@ -738,35 +806,25 @@ private fun FavoriteContextDialog(
             }
             Spacer(modifier = Modifier.height(22.dp))
 
-            if (canMoveLeft) {
-                FavoriteAction(
-                    text = "Sola taşı",
-                    onClick = onMoveLeft,
-                    modifier = Modifier.focusRequester(firstActionFocusRequester),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            if (canMoveRight) {
-                FavoriteAction(
-                    text = "Sağa taşı",
-                    onClick = onMoveRight,
-                    modifier = if (!canMoveLeft) {
-                        Modifier.focusRequester(firstActionFocusRequester)
-                    } else {
-                        Modifier
-                    },
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
             FavoriteAction(
                 text = "Favorilerden çıkar",
                 onClick = onRemove,
-                modifier = if (!canMoveLeft && !canMoveRight) {
-                    Modifier.focusRequester(firstActionFocusRequester)
-                } else {
-                    Modifier
-                },
+                modifier = Modifier.focusRequester(firstActionFocusRequester),
             )
+            if (canMoveLeft) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FavoriteAction(
+                    text = "Sola taşı",
+                    onClick = onMoveLeft,
+                )
+            }
+            if (canMoveRight) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FavoriteAction(
+                    text = "Sağa taşı",
+                    onClick = onMoveRight,
+                )
+            }
         }
     }
 }
@@ -838,10 +896,4 @@ private fun rememberClock(): String {
     return remember(now) {
         now.format(DateTimeFormatter.ofPattern("HH:mm"))
     }
-}
-
-private fun greetingFor(time: LocalTime): String = when (time.hour) {
-    in 5..11 -> "Günaydın"
-    in 12..17 -> "İyi günler"
-    else -> "İyi akşamlar"
 }

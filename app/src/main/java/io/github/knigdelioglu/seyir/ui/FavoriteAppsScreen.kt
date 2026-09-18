@@ -3,6 +3,7 @@ package io.github.knigdelioglu.seyir.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -261,7 +263,10 @@ private fun FavoriteAppCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .tvDpadClick(onClick = onClick)
+            .tvDpadClick(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .focusable()
             .combinedClickable(
                 onClick = onClick,
@@ -274,7 +279,7 @@ private fun FavoriteAppCard(
                     "${app.label}, favorilere ekle"
                 }
             },
-        horizontalAlignment = Alignment.Start,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
@@ -282,10 +287,11 @@ private fun FavoriteAppCard(
                     width = SeyirSize.AppCardWidth,
                     height = SeyirSize.AppCardHeight,
                 )
-                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-                ),
+                    color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                    shape = RoundedCornerShape(SeyirRadius.Card),
+                )
+                .tvFocusedChasingBorder(focused = focused),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -307,6 +313,8 @@ private fun FavoriteAppCard(
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = SeyirType.CardLabel,
@@ -315,11 +323,16 @@ private fun FavoriteAppCard(
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = if (isFavorite) "Favoride • ${favoriteIndex + 1}" else "Favorilere ekle",
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            text = if (isFavorite) "Sabitlendi" else "Ekle",
             fontSize = SeyirType.Meta,
-            color = if (isFavorite) SeyirColors.Accent else SeyirColors.TextTertiary,
+            fontWeight = FontWeight.Medium,
+            color = if (focused) {
+                SeyirColors.TextPrimary
+            } else if (isFavorite) {
+                SeyirColors.Accent
+            } else {
+                SeyirColors.TextTertiary
+            },
         )
     }
 }
@@ -375,35 +388,25 @@ private fun FavoriteAppContextDialog(
             }
             Spacer(modifier = Modifier.height(22.dp))
 
-            if (isFavorite && canMoveLeft) {
-                FavoriteManagementAction(
-                    text = "Sola taşı",
-                    onClick = onMoveLeft,
-                    modifier = Modifier.focusRequester(firstActionFocusRequester),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            if (isFavorite && canMoveRight) {
-                FavoriteManagementAction(
-                    text = "Sağa taşı",
-                    onClick = onMoveRight,
-                    modifier = if (!canMoveLeft) {
-                        Modifier.focusRequester(firstActionFocusRequester)
-                    } else {
-                        Modifier
-                    },
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
             FavoriteManagementAction(
                 text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
                 onClick = onToggleFavorite,
-                modifier = if (!isFavorite || (!canMoveLeft && !canMoveRight)) {
-                    Modifier.focusRequester(firstActionFocusRequester)
-                } else {
-                    Modifier
-                },
+                modifier = Modifier.focusRequester(firstActionFocusRequester),
             )
+            if (isFavorite && canMoveLeft) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FavoriteManagementAction(
+                    text = "Sola taşı",
+                    onClick = onMoveLeft,
+                )
+            }
+            if (isFavorite && canMoveRight) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FavoriteManagementAction(
+                    text = "Sağa taşı",
+                    onClick = onMoveRight,
+                )
+            }
         }
     }
 }

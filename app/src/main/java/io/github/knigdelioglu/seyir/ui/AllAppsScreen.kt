@@ -3,6 +3,7 @@ package io.github.knigdelioglu.seyir.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -282,13 +284,16 @@ private fun AllAppsCard(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .tvDpadClick(onClick = onClick)
+            .tvDpadClick(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .focusable()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             ),
-        horizontalAlignment = Alignment.Start,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
@@ -296,10 +301,11 @@ private fun AllAppsCard(
                     width = SeyirSize.AppCardWidth,
                     height = SeyirSize.AppCardHeight,
                 )
-                .clip(RoundedCornerShape(SeyirRadius.Card))
                 .background(
-                    if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
-                ),
+                    color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                    shape = RoundedCornerShape(SeyirRadius.Card),
+                )
+                .tvFocusedChasingBorder(focused = focused),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -322,6 +328,8 @@ private fun AllAppsCard(
         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
         Text(
             text = app.label,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = SeyirType.CardLabel,
@@ -376,14 +384,14 @@ private fun AppContextDialog(
             Spacer(modifier = Modifier.height(22.dp))
 
             ContextAction(
-                text = "Aç",
-                onClick = onOpen,
+                text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                onClick = onToggleFavorite,
                 modifier = Modifier.focusRequester(firstActionFocusRequester),
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             ContextAction(
-                text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
-                onClick = onToggleFavorite,
+                text = "Aç",
+                onClick = onOpen,
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             ContextAction(
