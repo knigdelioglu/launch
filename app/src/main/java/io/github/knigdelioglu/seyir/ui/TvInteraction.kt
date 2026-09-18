@@ -2,13 +2,7 @@ package io.github.knigdelioglu.seyir.ui
 
 import android.view.KeyEvent as AndroidKeyEvent
 import android.view.ViewConfiguration
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,18 +12,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -139,17 +129,25 @@ private val TV_ACTIVATION_KEYS = setOf(
     AndroidKeyEvent.KEYCODE_BUTTON_A,
 )
 
-private val GOOGLE_NEON_COLORS = intArrayOf(
-    android.graphics.Color.rgb(0x42, 0x85, 0xF4), // Google Blue
-    android.graphics.Color.rgb(0xEA, 0x43, 0x35), // Google Red
-    android.graphics.Color.rgb(0xFB, 0xBC, 0x05), // Google Yellow
-    android.graphics.Color.rgb(0x34, 0xA8, 0x53), // Google Green
-    android.graphics.Color.rgb(0x42, 0x85, 0xF4), // Google Blue (closes the loop)
+private val GOOGLE_NEON_COLORS = listOf(
+    Color(0xFF4285F4),
+    Color(0xFFEA4335),
+    Color(0xFFFBBC05),
+    Color(0xFF34A853),
+    Color(0xFF4285F4),
 )
 
 /**
- * Draws an animated Google TV style neon pulsing border around the card when focused.
- * The 4 Google neon colors (Blue, Red, Yellow, Green) rotate and pulse with a breathing glow.
+ * Draws the Google-TV-style neon focus border without a perpetual animation.
+ *
+ * The previous implementation ran two infinite transitions and rebuilt an
+ * Android SweepGradient + ShaderBrush on every drawn frame while any card
+ * stayed focused. TV launchers keep an item focused almost all the time, so
+ * that turned an otherwise idle screen into a permanent render loop.
+ *
+ * drawWithCache keeps the gradient and geometry cached until size/density or
+ * the modifier inputs change. Focus still gets a vivid neon border, but an
+ * idle launcher no longer burns CPU/GPU just to keep the highlight alive.
  */
 @Composable
 fun Modifier.tvFocusedChasingBorder(
@@ -159,70 +157,45 @@ fun Modifier.tvFocusedChasingBorder(
 ): Modifier {
     if (!focused) return this
 
-    val infiniteTransition = rememberInfiniteTransition(label = "google-neon-border")
-
-    // Continuous flow/rotation of the 4 neon colors around the perimeter
-    val angle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "angle",
-    )
-
-    // Neon breathing / pulsing (yanıp sönme) like Google TV startup
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.40f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulse",
-    )
-
-    val matrix = remember { android.graphics.Matrix() }
-
-    return drawWithContent {
-        drawContent()
-
+    return drawWithCache {
         val strokePx = borderWidth.toPx()
         val halfStroke = strokePx / 2f
         val cornerPx = cornerRadius.toPx()
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-
-        val shader = android.graphics.SweepGradient(cx, cy, GOOGLE_NEON_COLORS, null)
-        matrix.setRotate(angle, cx, cy)
-        shader.setLocalMatrix(matrix)
-        val brush = ShaderBrush(shader)
-
+        val strokeSize = Size(
+            width = size.width - strokePx,
+            height = size.height - strokePx,
+        )
         val strokeCornerRadius = CornerRadius(
-            maxOf(0f, cornerPx - halfStroke),
-            maxOf(0f, cornerPx - halfStroke),
+            x = maxOf(0f, cornerPx - halfStroke),
+            y = maxOf(0f, cornerPx - halfStroke),
+        )
+        val brush = Brush.sweepGradient(
+            colors = GOOGLE_NEON_COLORS,
+            center = Offset(size.width / 2f, size.height / 2f),
         )
 
-        // 1. Soft outer neon glow bloom
-        drawRoundRect(
-            brush = brush,
-            topLeft = Offset(halfStroke, halfStroke),
-            size = Size(size.width - strokePx, size.height - strokePx),
-            cornerRadius = strokeCornerRadius,
-            style = Stroke(width = strokePx * 2.2f),
-            alpha = pulse * 0.35f,
-        )
+        onDrawWithContent {
+            drawContent()
+            if (strokeSize.width <= 0f || strokeSize.height <= 0f) {
+                return@onDrawWithContent
+            }
 
-        // 2. Main vivid neon core stroke
-        drawRoundRect(
-            brush = brush,
-            topLeft = Offset(halfStroke, halfStroke),
-            size = Size(size.width - strokePx, size.height - strokePx),
-            cornerRadius = strokeCornerRadius,
-            style = Stroke(width = strokePx),
-            alpha = pulse * 0.95f,
-        )
+            drawRoundRect(
+                brush = brush,
+                topLeft = Offset(halfStroke, halfStroke),
+                size = strokeSize,
+                cornerRadius = strokeCornerRadius,
+                style = Stroke(width = strokePx * 2f),
+                alpha = 0.20f,
+            )
+            drawRoundRect(
+                brush = brush,
+                topLeft = Offset(halfStroke, halfStroke),
+                size = strokeSize,
+                cornerRadius = strokeCornerRadius,
+                style = Stroke(width = strokePx),
+                alpha = 0.95f,
+            )
+        }
     }
 }
-
