@@ -150,11 +150,11 @@ fun SettingsScreen(
             ) {
                 SettingsChoiceCard(
                     title = "Tema",
-                    value = if (themeMode == ThemeMode.DARK) "Koyu" else "Siyah",
-                    detail = if (themeMode == ThemeMode.DARK) {
-                        "Yumuşak koyu yüzey"
+                    value = if (themeMode == ThemeMode.BLACK) "Koyu" else "Açık",
+                    detail = if (themeMode == ThemeMode.BLACK) {
+                        "Google TV tarzı koyu gri"
                     } else {
-                        "Gerçek siyah arka plan"
+                        "Açık mavi ana yüzey"
                     },
                     symbol = "◐",
                     onClick = {
