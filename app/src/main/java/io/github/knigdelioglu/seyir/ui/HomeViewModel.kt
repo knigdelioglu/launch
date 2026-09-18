@@ -65,9 +65,11 @@ class HomeViewModel(
 
     private var refreshJob: Job? = null
     private var matchesJob: Job? = null
+    private var cachedMatchesJob: Job? = null
     private var discoveredApps: List<InstalledApp> = appRepository.cachedLaunchableApps()
     private var latestPreferences = LauncherPreferences()
-    private var lastAppRefreshCompletedAtMillis: Long = 0L
+    private var hasObservedPreferences = false
+    private var renderedMatchCacheKey: MatchCacheKey? = null
 
     private val _uiState = MutableStateFlow(
         HomeUiState(isLoading = discoveredApps.isEmpty()),
@@ -107,7 +109,6 @@ class HomeViewModel(
                     apps.map { it.packageName },
                 )
 
-                lastAppRefreshCompletedAtMillis = System.currentTimeMillis()
                 _uiState.update { current ->
                     renderPreferences(
                         current = current,
@@ -128,14 +129,8 @@ class HomeViewModel(
         }
     }
 
-    fun refreshOnResume(nowMillis: Long = System.currentTimeMillis()) {
-        if (
-            shouldRefreshAppsOnResume(
-                hasCachedApps = discoveredApps.isNotEmpty(),
-                lastRefreshCompletedAtMillis = lastAppRefreshCompletedAtMillis,
-                nowMillis = nowMillis,
-            )
-        ) {
+    fun refreshOnResume() {
+        if (shouldRefreshAppsOnResume(hasCachedApps = discoveredApps.isNotEmpty())) {
             refresh()
         }
     }
@@ -145,6 +140,7 @@ class HomeViewModel(
         val todayValue = today.toString()
         when (decideMatchRefreshPlan(latestPreferences, todayValue, force)) {
             MatchRefreshPlan.DISABLED -> {
+                renderedMatchCacheKey = null
                 _uiState.update {
                     it.copy(
                         sportsApiConfigured = false,
@@ -158,10 +154,16 @@ class HomeViewModel(
             }
 
             MatchRefreshPlan.USE_CACHE -> {
-                showCachedMatches(
-                    preferences = latestPreferences,
-                    favoriteTeamNames = latestPreferences.favoriteTeams.mapTo(linkedSetOf()) { it.name },
-                )
+                if (cachedMatchesJob?.isActive != true) {
+                    val preferences = latestPreferences
+                    val favoriteTeamNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
+                    cachedMatchesJob = viewModelScope.launch {
+                        showCachedMatches(
+                            preferences = preferences,
+                            favoriteTeamNames = favoriteTeamNames,
+                        )
+                    }
+                }
                 return
             }
 
@@ -197,6 +199,7 @@ class HomeViewModel(
         val favoriteTeamNames = latestPreferences.favoriteTeams
             .mapTo(linkedSetOf()) { it.name }
 
+        renderedMatchCacheKey = null
         matchesJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -218,6 +221,11 @@ class HomeViewModel(
                     favoriteTeamNames = favoriteTeamNames,
                 )
                 val fetchedAt = System.currentTimeMillis()
+                renderedMatchCacheKey = MatchCacheKey(
+                    date = todayValue,
+                    rawJson = result.rawJson,
+                    favoriteTeamNames = favoriteTeamNames,
+                )
                 preferencesRepository.saveDailyMatchCache(
                     date = todayValue,
                     json = result.rawJson,
@@ -393,14 +401,22 @@ class HomeViewModel(
         _uiState.update { it.copy(transientMessage = message) }
     }
 
-    private fun showCachedMatches(
+    private suspend fun showCachedMatches(
         preferences: LauncherPreferences,
         favoriteTeamNames: Set<String>,
     ) {
+        val cacheKey = MatchCacheKey(
+            date = preferences.dailyMatchCacheDate,
+            rawJson = preferences.dailyMatchCacheJson,
+            favoriteTeamNames = favoriteTeamNames.toSet(),
+        )
+        if (cacheKey == renderedMatchCacheKey) return
+
         val matches = matchRepository.parseCachedMatches(
             rawJson = preferences.dailyMatchCacheJson,
             favoriteTeamNames = favoriteTeamNames,
         )
+        renderedMatchCacheKey = cacheKey
         _uiState.update {
             it.copy(
                 todayMatches = matches,
@@ -415,12 +431,14 @@ class HomeViewModel(
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
                 val previousPreferences = latestPreferences
+                val isInitialEmission = !hasObservedPreferences
                 val apiKeyChanged = preferences.footballApiKey != previousPreferences.footballApiKey
                 val favoriteTeamsChanged = preferences.favoriteTeams != previousPreferences.favoriteTeams
                 val cacheChanged =
                     preferences.dailyMatchCacheDate != previousPreferences.dailyMatchCacheDate ||
                         preferences.dailyMatchCacheJson != previousPreferences.dailyMatchCacheJson
                 latestPreferences = preferences
+                hasObservedPreferences = true
 
                 _uiState.update { current ->
                     renderPreferences(
@@ -431,20 +449,22 @@ class HomeViewModel(
                 }
 
                 val today = LocalDate.now(TodayMatchRepository.TURKEY_TIME_ZONE)
+                val todayValue = today.toString()
                 val favoriteNames = preferences.favoriteTeams.mapTo(linkedSetOf()) { it.name }
-                if (
-                    (favoriteTeamsChanged || cacheChanged) &&
-                    preferences.dailyMatchCacheDate == today.toString() &&
-                    preferences.dailyMatchCacheJson.isNotBlank()
-                ) {
+                val hasTodayCache =
+                    preferences.dailyMatchCacheDate == todayValue &&
+                        preferences.dailyMatchCacheJson.isNotBlank()
+
+                if ((favoriteTeamsChanged || cacheChanged) && hasTodayCache) {
                     showCachedMatches(
                         preferences = preferences,
                         favoriteTeamNames = favoriteNames,
                     )
                 }
 
-                if (apiKeyChanged || preferences.footballApiKey.isNotBlank()) {
-                    refreshTodayMatches(force = apiKeyChanged)
+                when {
+                    apiKeyChanged && !isInitialEmission -> refreshTodayMatches(force = true)
+                    preferences.footballApiKey.isNotBlank() && !hasTodayCache -> refreshTodayMatches()
                 }
             }
         }
@@ -503,6 +523,12 @@ class HomeViewModel(
 
         else -> error.message ?: "Bugünün maçları alınamadı. Yarın yeniden denenecek."
     }
+
+    private data class MatchCacheKey(
+        val date: String,
+        val rawJson: String,
+        val favoriteTeamNames: Set<String>,
+    )
 
     private companion object {
         const val DEFAULT_FAVORITE_COUNT = 7
