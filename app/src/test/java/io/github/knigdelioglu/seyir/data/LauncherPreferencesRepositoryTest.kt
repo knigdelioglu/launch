@@ -47,6 +47,22 @@ class LauncherPreferencesRepositoryTest {
     }
 
     @Test
+    fun darkModeSchedule_isPersistedAndValidated() = runBlocking {
+        val repository = repository()
+
+        repository.setDarkModeSchedule(
+            enabled = true,
+            startMinutes = 20 * 60 + 15,
+            endMinutes = 7 * 60 + 30,
+        )
+
+        val preferences = repository.preferences.first()
+        assertTrue(preferences.darkModeScheduleEnabled)
+        assertEquals(20 * 60 + 15, preferences.darkModeStartMinutes)
+        assertEquals(7 * 60 + 30, preferences.darkModeEndMinutes)
+    }
+
+    @Test
     fun blankStoredApiKey_overridesBuildTimeFallback() = runBlocking {
         val repository = repository(defaultApiKey = "build-time-key")
 
