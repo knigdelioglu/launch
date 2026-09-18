@@ -9,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class TodayMatchRepositoryTest {
@@ -67,18 +68,29 @@ class TodayMatchRepositoryTest {
     }
 
     @Test
-    fun parseCachedMatches_ignoresMalformedStoredJson() {
+    fun parseCachedMatches_ignoresMalformedStoredJson() = runBlocking {
         assertTrue(repository.parseCachedMatches("not-json").isEmpty())
     }
 
     @Test
-    fun cachedFavoriteTeam_changesSelectionOrder_withoutAnotherNetworkCall() {
+    fun cachedFavoriteTeam_changesSelectionOrder_withoutAnotherNetworkCall() = runBlocking {
         val matches = repository.parseCachedMatches(
             rawJson = twoFixturesJson(),
             favoriteTeamNames = setOf("Galatasaray"),
         )
 
         assertEquals(listOf(2L, 1L), matches.map { it.fixtureId })
+    }
+
+    @Test
+    fun cachedMatchParse_reusesResultForSameJsonAndFavorites() = runBlocking {
+        val rawJson = twoFixturesJson()
+        val favoriteTeams = setOf("Galatasaray")
+
+        val first = repository.parseCachedMatches(rawJson, favoriteTeams)
+        val second = repository.parseCachedMatches(rawJson, favoriteTeams)
+
+        assertSame(first, second)
     }
 
     @Test
