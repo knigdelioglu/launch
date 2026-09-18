@@ -20,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.knigdelioglu.seyir.ui.AllAppsScreen
+import io.github.knigdelioglu.seyir.ui.AppearanceSettingsScreen
 import io.github.knigdelioglu.seyir.ui.FavoriteAppsScreen
 import io.github.knigdelioglu.seyir.ui.FavoriteTeamsScreen
 import io.github.knigdelioglu.seyir.ui.HiddenAppsScreen
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = screen != SCREEN_HOME) {
                     screen = when (screen) {
                         SCREEN_HIDDEN_APPS -> SCREEN_ALL_APPS
+                        SCREEN_APPEARANCE_SETTINGS -> SCREEN_HOME
                         SCREEN_ALL_APPS -> allAppsReturnScreen
                         SCREEN_FAVORITE_APPS -> SCREEN_SETTINGS
                         SCREEN_FAVORITE_TEAMS -> {
@@ -101,7 +103,7 @@ class MainActivity : ComponentActivity() {
                         visibleAppCount = uiState.apps.size,
                         hiddenAppCount = uiState.hiddenApps.size,
                         favoriteAppCount = uiState.favoriteApps.size,
-                        themeMode = uiState.themeMode,
+                        themeMode = uiState.manualThemeMode,
                         accentMode = uiState.accentMode,
                         reducedMotion = uiState.reducedMotion,
                         sportsApiConfigured = uiState.sportsApiConfigured,
@@ -144,6 +146,16 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = SCREEN_SETTINGS },
                     )
 
+                    SCREEN_APPEARANCE_SETTINGS -> AppearanceSettingsScreen(
+                        manualThemeMode = uiState.manualThemeMode,
+                        scheduleEnabled = uiState.darkModeScheduleEnabled,
+                        startMinutes = uiState.darkModeStartMinutes,
+                        endMinutes = uiState.darkModeEndMinutes,
+                        onManualDarkModeChanged = viewModel::setManualDarkMode,
+                        onScheduleChanged = viewModel::setDarkModeSchedule,
+                        onBack = { screen = SCREEN_HOME },
+                    )
+
                     SCREEN_FAVORITE_TEAMS -> FavoriteTeamsScreen(
                         selectedTeams = uiState.favoriteTeams,
                         searchResults = uiState.teamSearchResults,
@@ -170,6 +182,7 @@ class MainActivity : ComponentActivity() {
                             screen = SCREEN_ALL_APPS
                         },
                         onOpenSettings = { openAndroidSettings() },
+                        onOpenAppearanceSettings = { screen = SCREEN_APPEARANCE_SETTINGS },
                         onRetry = viewModel::refresh,
                         onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
                         onDismissMessage = viewModel::dismissTransientMessage,
@@ -231,6 +244,7 @@ class MainActivity : ComponentActivity() {
         const val SCREEN_HOME = "home"
         const val SCREEN_ALL_APPS = "all_apps"
         const val SCREEN_HIDDEN_APPS = "hidden_apps"
+        const val SCREEN_APPEARANCE_SETTINGS = "appearance_settings"
         const val SCREEN_SETTINGS = "settings"
         const val SCREEN_FAVORITE_APPS = "favorite_apps"
         const val SCREEN_SPORTS_SETTINGS = "sports_settings"
