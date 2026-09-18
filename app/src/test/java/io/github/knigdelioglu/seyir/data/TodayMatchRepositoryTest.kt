@@ -30,6 +30,22 @@ class TodayMatchRepositoryTest {
     }
 
     @Test
+    fun arsenalDzerzhinsk_isNotTreatedAsArsenal_evenIfIdLooksFeatured() {
+        val selected = repository.selectMatchesForHome(
+            listOf(
+                match(
+                    fixtureId = 99,
+                    kickoffEpochSeconds = 1_000,
+                    homeTeamId = 42,
+                    homeTeam = "FC Arsenal Dzerzhinsk",
+                ),
+            ),
+        )
+
+        assertTrue(selected.isEmpty())
+    }
+
+    @Test
     fun selectMatchesForHome_usesTeamNameWhenApiIdIsMissing() {
         val selected = repository.selectMatchesForHome(
             listOf(
