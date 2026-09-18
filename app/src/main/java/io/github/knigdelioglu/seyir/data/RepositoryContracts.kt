@@ -54,7 +54,7 @@ interface TodayMatchSource {
         favoriteTeamNames: Set<String> = emptySet(),
     ): DailyMatchResult
 
-    fun parseCachedMatches(
+    suspend fun parseCachedMatches(
         rawJson: String,
         favoriteTeamNames: Set<String> = emptySet(),
     ): List<TodayMatch>
