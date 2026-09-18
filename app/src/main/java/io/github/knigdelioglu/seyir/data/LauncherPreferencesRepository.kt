@@ -37,6 +37,9 @@ enum class AccentMode {
     EMERALD,
 }
 
+internal const val DEFAULT_DARK_MODE_START_MINUTES = 20 * 60
+internal const val DEFAULT_DARK_MODE_END_MINUTES = 7 * 60
+
 data class FavoriteTeam(
     val id: Int,
     val name: String,
@@ -49,6 +52,9 @@ data class LauncherPreferences(
     val favoritePackages: List<String> = emptyList(),
     val hiddenPackages: Set<String> = emptySet(),
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val darkModeScheduleEnabled: Boolean = false,
+    val darkModeStartMinutes: Int = DEFAULT_DARK_MODE_START_MINUTES,
+    val darkModeEndMinutes: Int = DEFAULT_DARK_MODE_END_MINUTES,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
     val footballApiKey: String = BuildConfig.FOOTBALL_API_KEY,
@@ -157,6 +163,18 @@ class LauncherPreferencesRepository(
         updatePreferences { preferences -> preferences[THEME_MODE] = themeMode.name }
     }
 
+    override suspend fun setDarkModeSchedule(
+        enabled: Boolean,
+        startMinutes: Int,
+        endMinutes: Int,
+    ) {
+        updatePreferences { preferences ->
+            preferences[DARK_MODE_SCHEDULE_ENABLED] = enabled
+            preferences[DARK_MODE_START_MINUTES] = startMinutes.coerceIn(0, MINUTES_PER_DAY - 1)
+            preferences[DARK_MODE_END_MINUTES] = endMinutes.coerceIn(0, MINUTES_PER_DAY - 1)
+        }
+    }
+
     override suspend fun setAccentMode(accentMode: AccentMode) {
         updatePreferences { preferences -> preferences[ACCENT_MODE] = accentMode.name }
     }
@@ -237,6 +255,9 @@ class LauncherPreferencesRepository(
         val FAVORITE_PACKAGES = stringPreferencesKey("favorite_packages_v1")
         val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages_v1")
         val THEME_MODE = stringPreferencesKey("theme_mode_v1")
+        val DARK_MODE_SCHEDULE_ENABLED = booleanPreferencesKey("dark_mode_schedule_enabled_v1")
+        val DARK_MODE_START_MINUTES = intPreferencesKey("dark_mode_start_minutes_v1")
+        val DARK_MODE_END_MINUTES = intPreferencesKey("dark_mode_end_minutes_v1")
         val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
         val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
         val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
@@ -245,10 +266,11 @@ class LauncherPreferencesRepository(
         val DAILY_MATCH_CACHE_DATE = stringPreferencesKey("daily_match_cache_date_v1")
         val DAILY_MATCH_CACHE_JSON = stringPreferencesKey("daily_match_cache_json_v1")
         val DAILY_MATCH_CACHE_FETCHED_AT = longPreferencesKey("daily_match_cache_fetched_at_v1")
+        const val MINUTES_PER_DAY = 24 * 60
     }
 }
 
-internal const val CURRENT_LAUNCHER_SCHEMA_VERSION = 5
+internal const val CURRENT_LAUNCHER_SCHEMA_VERSION = 6
 
 internal object LauncherPreferencesCodec {
     private const val PACKAGE_SEPARATOR = "\n"
@@ -259,6 +281,9 @@ internal object LauncherPreferencesCodec {
     private val FAVORITE_PACKAGES = stringPreferencesKey("favorite_packages_v1")
     private val HIDDEN_PACKAGES = stringSetPreferencesKey("hidden_packages_v1")
     private val THEME_MODE = stringPreferencesKey("theme_mode_v1")
+    private val DARK_MODE_SCHEDULE_ENABLED = booleanPreferencesKey("dark_mode_schedule_enabled_v1")
+    private val DARK_MODE_START_MINUTES = intPreferencesKey("dark_mode_start_minutes_v1")
+    private val DARK_MODE_END_MINUTES = intPreferencesKey("dark_mode_end_minutes_v1")
     private val ACCENT_MODE = stringPreferencesKey("accent_mode_v1")
     private val REDUCED_MOTION = booleanPreferencesKey("reduced_motion_v1")
     private val API_FOOTBALL_KEY = stringPreferencesKey("api_football_key_v1")
@@ -286,6 +311,13 @@ internal object LauncherPreferencesCodec {
         favoritePackages = decodeOrderedPackages(preferences[FAVORITE_PACKAGES]),
         hiddenPackages = preferences[HIDDEN_PACKAGES].orEmpty(),
         themeMode = preferences[THEME_MODE].toEnumOrDefault(ThemeMode.DARK),
+        darkModeScheduleEnabled = preferences[DARK_MODE_SCHEDULE_ENABLED] ?: false,
+        darkModeStartMinutes = preferences[DARK_MODE_START_MINUTES]
+            ?.coerceIn(0, MINUTES_PER_DAY - 1)
+            ?: DEFAULT_DARK_MODE_START_MINUTES,
+        darkModeEndMinutes = preferences[DARK_MODE_END_MINUTES]
+            ?.coerceIn(0, MINUTES_PER_DAY - 1)
+            ?: DEFAULT_DARK_MODE_END_MINUTES,
         accentMode = preferences[ACCENT_MODE].toEnumOrDefault(AccentMode.NEUTRAL),
         reducedMotion = preferences[REDUCED_MOTION] ?: false,
         // A stored blank value intentionally disables the feature. The build-time
@@ -343,6 +375,8 @@ internal object LauncherPreferencesCodec {
         .replace(PACKAGE_SEPARATOR, " ")
         .replace(TEAM_FIELD_SEPARATOR, " ")
         .trim()
+
+    private const val MINUTES_PER_DAY = 24 * 60
 
     private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
         this?.let { encoded -> enumValues<T>().firstOrNull { it.name == encoded } } ?: default
