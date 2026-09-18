@@ -6,34 +6,19 @@ import org.junit.Test
 
 class AppResumeRefreshPolicyTest {
     @Test
-    fun emptySnapshot_alwaysRefreshes() {
+    fun emptySnapshot_refreshesOnResume() {
         assertTrue(
             shouldRefreshAppsOnResume(
                 hasCachedApps = false,
-                lastRefreshCompletedAtMillis = 10_000L,
-                nowMillis = 10_001L,
             ),
         )
     }
 
     @Test
-    fun recentRefresh_withCachedApps_skipsRescan() {
+    fun cachedSnapshot_skipsPeriodicResumeRescan() {
         assertFalse(
             shouldRefreshAppsOnResume(
                 hasCachedApps = true,
-                lastRefreshCompletedAtMillis = 10_000L,
-                nowMillis = 10_000L + APP_RESUME_REFRESH_INTERVAL_MILLIS - 1,
-            ),
-        )
-    }
-
-    @Test
-    fun staleRefresh_withCachedApps_runsAgain() {
-        assertTrue(
-            shouldRefreshAppsOnResume(
-                hasCachedApps = true,
-                lastRefreshCompletedAtMillis = 10_000L,
-                nowMillis = 10_000L + APP_RESUME_REFRESH_INTERVAL_MILLIS,
             ),
         )
     }
