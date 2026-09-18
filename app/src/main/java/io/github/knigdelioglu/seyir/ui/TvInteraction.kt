@@ -41,47 +41,63 @@ fun Modifier.tvDpadClick(
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
-): Modifier = if (!enabled) {
-    this
-} else composed {
-    val scope = rememberCoroutineScope()
-    var longPressJob by remember { mutableStateOf<Job?>(null) }
-    var isLongPressTriggered by remember { mutableStateOf(false) }
+): Modifier {
+    if (!enabled) return this
 
-    onPreviewKeyEvent { event ->
-        val nativeEvent = event.nativeKeyEvent
-        val isActivationKey = nativeEvent.keyCode in TV_ACTIVATION_KEYS
-        val isMenuKey = nativeEvent.keyCode == AndroidKeyEvent.KEYCODE_MENU
-
-        if (isMenuKey && onLongClick != null) {
-            if (event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0) {
-                onLongClick()
+    // Most TV controls only need a short click. Keep that path allocation-light:
+    // no coroutine scope, Job or Compose state is created for every card.
+    if (onLongClick == null) {
+        return onPreviewKeyEvent { event ->
+            val nativeEvent = event.nativeKeyEvent
+            if (
+                nativeEvent.keyCode in TV_ACTIVATION_KEYS &&
+                event.type == KeyEventType.KeyDown
+            ) {
+                if (nativeEvent.repeatCount == 0) {
+                    onClick()
+                }
                 true
             } else {
-                event.type == KeyEventType.KeyDown
+                false
             }
-        } else if (isActivationKey) {
-            when (event.type) {
-                KeyEventType.KeyDown -> {
-                    if (nativeEvent.repeatCount == 0) {
-                        isLongPressTriggered = false
-                        if (onLongClick != null) {
+        }
+    }
+
+    val longClick = onLongClick
+    return composed {
+        val scope = rememberCoroutineScope()
+        var longPressJob by remember { mutableStateOf<Job?>(null) }
+        var isLongPressTriggered by remember { mutableStateOf(false) }
+
+        onPreviewKeyEvent { event ->
+            val nativeEvent = event.nativeKeyEvent
+            val isActivationKey = nativeEvent.keyCode in TV_ACTIVATION_KEYS
+            val isMenuKey = nativeEvent.keyCode == AndroidKeyEvent.KEYCODE_MENU
+
+            if (isMenuKey) {
+                if (event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0) {
+                    longClick()
+                    true
+                } else {
+                    event.type == KeyEventType.KeyDown
+                }
+            } else if (isActivationKey) {
+                when (event.type) {
+                    KeyEventType.KeyDown -> {
+                        if (nativeEvent.repeatCount == 0) {
+                            isLongPressTriggered = false
                             longPressJob?.cancel()
                             longPressJob = scope.launch {
                                 delay(ViewConfiguration.getLongPressTimeout().toLong())
                                 isLongPressTriggered = true
-                                onLongClick()
+                                longClick()
                             }
+                            true
                         } else {
-                            onClick()
+                            true
                         }
-                        true
-                    } else {
-                        true
                     }
-                }
-                KeyEventType.KeyUp -> {
-                    if (onLongClick != null) {
+                    KeyEventType.KeyUp -> {
                         longPressJob?.cancel()
                         longPressJob = null
                         if (!isLongPressTriggered) {
@@ -89,14 +105,12 @@ fun Modifier.tvDpadClick(
                         }
                         isLongPressTriggered = false
                         true
-                    } else {
-                        false
                     }
+                    else -> false
                 }
-                else -> false
+            } else {
+                false
             }
-        } else {
-            false
         }
     }
 }
