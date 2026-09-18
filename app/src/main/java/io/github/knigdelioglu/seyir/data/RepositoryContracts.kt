@@ -31,6 +31,12 @@ interface LauncherPreferencesSource {
 
     suspend fun setThemeMode(themeMode: ThemeMode)
 
+    suspend fun setDarkModeSchedule(
+        enabled: Boolean,
+        startMinutes: Int,
+        endMinutes: Int,
+    )
+
     suspend fun setAccentMode(accentMode: AccentMode)
 
     suspend fun setReducedMotion(reducedMotion: Boolean)
