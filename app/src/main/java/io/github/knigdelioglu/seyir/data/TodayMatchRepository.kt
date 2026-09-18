@@ -2,6 +2,8 @@ package io.github.knigdelioglu.seyir.data
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
@@ -190,6 +192,11 @@ class HttpFootballApiClient(
 class TodayMatchRepository(
     private val apiClient: FootballApiClient = HttpFootballApiClient(),
 ) : TodayMatchSource {
+    private val cachedParseMutex = Mutex()
+    private var cachedRawJson: String? = null
+    private var cachedFavoriteTeamNames: Set<String> = emptySet()
+    private var cachedMatches: List<TodayMatch> = emptyList()
+
     override suspend fun loadTodayMatches(
         apiKey: String,
         zoneId: ZoneId,
@@ -201,8 +208,9 @@ class TodayMatchRepository(
             date = date,
             zoneId = zoneId,
         )
+        val normalizedFavoriteTeamNames = favoriteTeamNames.toSet()
         val matches = try {
-            FootballMatchParser.parse(body, favoriteTeamNames)
+            parseMatchesOffMain(body, normalizedFavoriteTeamNames)
         } catch (error: CancellationException) {
             throw error
         } catch (error: FootballApiException) {
@@ -214,20 +222,62 @@ class TodayMatchRepository(
                 cause = error,
             )
         }
+        rememberCachedParse(
+            rawJson = body,
+            favoriteTeamNames = normalizedFavoriteTeamNames,
+            matches = matches,
+        )
         return DailyMatchResult(rawJson = body, matches = matches)
     }
 
-    override fun parseCachedMatches(
+    override suspend fun parseCachedMatches(
         rawJson: String,
         favoriteTeamNames: Set<String>,
-    ): List<TodayMatch> {
-        if (rawJson.isBlank()) return emptyList()
-        return try {
-            FootballMatchParser.parse(rawJson, favoriteTeamNames)
-        } catch (_: FootballApiException) {
+    ): List<TodayMatch> = cachedParseMutex.withLock {
+        val normalizedFavoriteTeamNames = favoriteTeamNames.toSet()
+        if (
+            rawJson == cachedRawJson &&
+            normalizedFavoriteTeamNames == cachedFavoriteTeamNames
+        ) {
+            return@withLock cachedMatches
+        }
+
+        val matches = if (rawJson.isBlank()) {
             emptyList()
-        } catch (_: JSONException) {
-            emptyList()
+        } else {
+            try {
+                parseMatchesOffMain(rawJson, normalizedFavoriteTeamNames)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: FootballApiException) {
+                emptyList()
+            } catch (_: JSONException) {
+                emptyList()
+            }
+        }
+
+        cachedRawJson = rawJson
+        cachedFavoriteTeamNames = normalizedFavoriteTeamNames
+        cachedMatches = matches
+        matches
+    }
+
+    private suspend fun parseMatchesOffMain(
+        rawJson: String,
+        favoriteTeamNames: Set<String>,
+    ): List<TodayMatch> = withContext(Dispatchers.Default) {
+        FootballMatchParser.parse(rawJson, favoriteTeamNames)
+    }
+
+    private suspend fun rememberCachedParse(
+        rawJson: String,
+        favoriteTeamNames: Set<String>,
+        matches: List<TodayMatch>,
+    ) {
+        cachedParseMutex.withLock {
+            cachedRawJson = rawJson
+            cachedFavoriteTeamNames = favoriteTeamNames
+            cachedMatches = matches
         }
     }
 
