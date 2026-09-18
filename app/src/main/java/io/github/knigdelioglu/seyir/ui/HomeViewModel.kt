@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.knigdelioglu.seyir.data.AccentMode
+import io.github.knigdelioglu.seyir.data.DEFAULT_DARK_MODE_END_MINUTES
+import io.github.knigdelioglu.seyir.data.DEFAULT_DARK_MODE_START_MINUTES
 import io.github.knigdelioglu.seyir.data.FavoriteTeam
 import io.github.knigdelioglu.seyir.data.FootballApiException
 import io.github.knigdelioglu.seyir.data.InstalledApp
@@ -18,6 +20,7 @@ import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import io.github.knigdelioglu.seyir.data.TodayMatchSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +28,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.Locale
 
 data class HomeUiState(
@@ -35,6 +39,10 @@ data class HomeUiState(
     val favoritePackageNames: List<String> = emptyList(),
     val hiddenPackageNames: Set<String> = emptySet(),
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val manualThemeMode: ThemeMode = ThemeMode.DARK,
+    val darkModeScheduleEnabled: Boolean = false,
+    val darkModeStartMinutes: Int = DEFAULT_DARK_MODE_START_MINUTES,
+    val darkModeEndMinutes: Int = DEFAULT_DARK_MODE_END_MINUTES,
     val accentMode: AccentMode = AccentMode.NEUTRAL,
     val reducedMotion: Boolean = false,
     val sportsApiConfigured: Boolean = false,
@@ -85,6 +93,7 @@ class HomeViewModel(
             )
         }
         observePreferences()
+        observeThemeScheduleClock()
         refresh()
     }
 
@@ -370,6 +379,24 @@ class HomeViewModel(
         }
     }
 
+    fun setManualDarkMode(enabled: Boolean) {
+        setThemeMode(if (enabled) ThemeMode.BLACK else ThemeMode.DARK)
+    }
+
+    fun setDarkModeSchedule(
+        enabled: Boolean,
+        startMinutes: Int,
+        endMinutes: Int,
+    ) {
+        viewModelScope.launch {
+            preferencesRepository.setDarkModeSchedule(
+                enabled = enabled,
+                startMinutes = startMinutes,
+                endMinutes = endMinutes,
+            )
+        }
+    }
+
     fun setAccentMode(accentMode: AccentMode) {
         viewModelScope.launch {
             preferencesRepository.setAccentMode(accentMode)
@@ -474,6 +501,20 @@ class HomeViewModel(
         }
     }
 
+    private fun observeThemeScheduleClock() {
+        viewModelScope.launch {
+            while (true) {
+                delay(30_000)
+                if (!latestPreferences.darkModeScheduleEnabled) continue
+
+                val effectiveTheme = effectiveThemeMode(latestPreferences)
+                _uiState.update { current ->
+                    if (current.themeMode == effectiveTheme) current else current.copy(themeMode = effectiveTheme)
+                }
+            }
+        }
+    }
+
     private fun renderPreferences(
         current: HomeUiState,
         preferences: LauncherPreferences,
@@ -501,13 +542,28 @@ class HomeViewModel(
             favoriteApps = favoriteApps,
             favoritePackageNames = packageState.favoritePackageNames,
             hiddenPackageNames = packageState.hiddenPackageNames,
-            themeMode = preferences.themeMode,
+            themeMode = effectiveThemeMode(preferences),
+            manualThemeMode = preferences.themeMode,
+            darkModeScheduleEnabled = preferences.darkModeScheduleEnabled,
+            darkModeStartMinutes = preferences.darkModeStartMinutes,
+            darkModeEndMinutes = preferences.darkModeEndMinutes,
             accentMode = preferences.accentMode,
             reducedMotion = preferences.reducedMotion,
             sportsApiConfigured = preferences.footballApiKey.isNotBlank(),
             favoriteTeams = preferences.favoriteTeams,
             matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
             errorMessage = null,
+        )
+    }
+
+    private fun effectiveThemeMode(preferences: LauncherPreferences): ThemeMode {
+        val now = LocalTime.now()
+        return resolveThemeMode(
+            manualThemeMode = preferences.themeMode,
+            scheduleEnabled = preferences.darkModeScheduleEnabled,
+            startMinutes = preferences.darkModeStartMinutes,
+            endMinutes = preferences.darkModeEndMinutes,
+            nowMinutes = now.hour * 60 + now.minute,
         )
     }
 
