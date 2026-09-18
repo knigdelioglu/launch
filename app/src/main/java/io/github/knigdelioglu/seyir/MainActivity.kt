@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enterImmersiveMode()
+        registerPackageReceiver()
 
         setContent {
             val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
@@ -178,11 +179,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        registerPackageReceiver()
-    }
-
     override fun onResume() {
         super.onResume()
         enterImmersiveMode()
@@ -190,12 +186,12 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshTodayMatches()
     }
 
-    override fun onStop() {
+    override fun onDestroy() {
         if (packageReceiverRegistered) {
             unregisterReceiver(packageChangesReceiver)
             packageReceiverRegistered = false
         }
-        super.onStop()
+        super.onDestroy()
     }
 
     private fun registerPackageReceiver() {
