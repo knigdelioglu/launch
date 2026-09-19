@@ -130,9 +130,9 @@ fun SettingsScreen(
                 SettingsActionCard(
                     title = "Bugün ne var",
                     description = if (sportsApiConfigured) {
-                        "API-Football bağlı • günlük tek sorgu"
+                        "Futbol • F1 • MotoGP"
                     } else {
-                        "Maç verisi kapalı"
+                        "F1 • MotoGP • futbol kapalı"
                     },
                     symbol = "⚽",
                     onClick = onOpenSports,
