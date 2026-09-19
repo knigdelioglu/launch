@@ -47,6 +47,10 @@ interface LauncherPreferencesSource {
 
     suspend fun saveDailyMatchCache(date: String, json: String, fetchedAtMillis: Long)
 
+    suspend fun markDailyMotorsportAttempt(date: String)
+
+    suspend fun saveDailyMotorsportCache(date: String, json: String, fetchedAtMillis: Long)
+
     suspend fun toggleFavoriteTeam(team: FavoriteTeam): Boolean
 
     suspend fun cleanupUnavailablePackages(availablePackages: Set<String>)
