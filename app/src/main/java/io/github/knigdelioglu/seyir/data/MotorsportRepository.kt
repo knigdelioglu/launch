@@ -351,7 +351,7 @@ class MotorsportRepository(
             if (dateValue.isBlank() || timeValue.isBlank()) return null
             val normalizedTime = timeValue.removeSuffix("Z").takeIf(String::isNotBlank) ?: return null
             return runCatching {
-                Instant.parse("${dateValue.trim()}T$normalizedTimeZ").epochSecond
+                Instant.parse("${dateValue.trim()}T${normalizedTime}Z").epochSecond
             }.getOrNull()
         }
 
