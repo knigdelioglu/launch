@@ -318,6 +318,7 @@ class HomeViewModel(
             return
         }
 
+        if (motorsportJob?.isActive == true) return
         if (!force && preferences.dailyMotorsportAttemptDate == todayValue) {
             _uiState.update {
                 it.copy(
@@ -327,7 +328,6 @@ class HomeViewModel(
             }
             return
         }
-        if (motorsportJob?.isActive == true) return
 
         cachedMotorsportJob?.cancel()
         cachedMotorsportJob = null
