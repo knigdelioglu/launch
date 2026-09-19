@@ -526,7 +526,7 @@ class HomeViewModel(
             if (apiKey.isBlank()) clearTeamSearch()
             showMessage(
                 if (apiKey.isBlank()) {
-                    "Bugün ne var devre dışı bırakıldı."
+                    "Futbol verisi devre dışı bırakıldı. F1 ve MotoGP gösterilmeye devam eder."
                 } else {
                     "API-Football anahtarı kaydedildi."
                 },
@@ -601,6 +601,9 @@ class HomeViewModel(
                 val cacheChanged =
                     preferences.dailyMatchCacheDate != previousPreferences.dailyMatchCacheDate ||
                         preferences.dailyMatchCacheJson != previousPreferences.dailyMatchCacheJson
+                val motorsportCacheChanged =
+                    preferences.dailyMotorsportCacheDate != previousPreferences.dailyMotorsportCacheDate ||
+                        preferences.dailyMotorsportCacheJson != previousPreferences.dailyMotorsportCacheJson
                 latestPreferences = preferences
                 hasObservedPreferences = true
 
@@ -618,6 +621,9 @@ class HomeViewModel(
                 val hasTodayCache =
                     preferences.dailyMatchCacheDate == todayValue &&
                         preferences.dailyMatchCacheJson.isNotBlank()
+                val hasTodayMotorsportCache =
+                    preferences.dailyMotorsportCacheDate == todayValue &&
+                        preferences.dailyMotorsportCacheJson.isNotBlank()
 
                 if (hasTodayCache && (favoriteTeamsChanged || cacheChanged || _uiState.value.todayMatches.isEmpty())) {
                     showCachedMatches(
@@ -625,10 +631,16 @@ class HomeViewModel(
                         favoriteTeamNames = favoriteNames,
                     )
                 }
+                if (hasTodayMotorsportCache && (motorsportCacheChanged || renderedMotorsportCacheKey == null)) {
+                    showCachedMotorsport(preferences)
+                }
 
                 when {
                     apiKeyChanged && !isInitialEmission -> refreshTodayMatches(force = true)
                     preferences.footballApiKey.isNotBlank() && !hasTodayCache -> refreshTodayMatches()
+                }
+                if (!hasTodayMotorsportCache) {
+                    refreshTodayMotorsport()
                 }
             }
         }
@@ -685,6 +697,7 @@ class HomeViewModel(
             sportsApiConfigured = preferences.footballApiKey.isNotBlank(),
             favoriteTeams = preferences.favoriteTeams,
             matchesFetchedAtMillis = preferences.dailyMatchCacheFetchedAtMillis,
+            motorsportFetchedAtMillis = preferences.dailyMotorsportCacheFetchedAtMillis,
             errorMessage = null,
         )
     }
@@ -721,6 +734,11 @@ class HomeViewModel(
         val date: String,
         val rawJson: String,
         val favoriteTeamNames: Set<String>,
+    )
+
+    private data class MotorsportCacheKey(
+        val date: String,
+        val rawJson: String,
     )
 
     private companion object {
