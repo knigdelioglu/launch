@@ -14,7 +14,10 @@ import io.github.knigdelioglu.seyir.data.InstalledAppSource
 import io.github.knigdelioglu.seyir.data.LauncherPreferences
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesRepository
 import io.github.knigdelioglu.seyir.data.LauncherPreferencesSource
+import io.github.knigdelioglu.seyir.data.MotorsportRepository
+import io.github.knigdelioglu.seyir.data.MotorsportSource
 import io.github.knigdelioglu.seyir.data.ThemeMode
+import io.github.knigdelioglu.seyir.data.TodayMotorsportSession
 import io.github.knigdelioglu.seyir.data.TodayMatch
 import io.github.knigdelioglu.seyir.data.TodayMatchRepository
 import io.github.knigdelioglu.seyir.data.TodayMatchSource
@@ -51,6 +54,10 @@ data class HomeUiState(
     val matchesLoading: Boolean = false,
     val matchesError: String? = null,
     val matchesFetchedAtMillis: Long = 0L,
+    val motorsportSessions: List<TodayMotorsportSession> = emptyList(),
+    val motorsportLoading: Boolean = false,
+    val motorsportError: String? = null,
+    val motorsportFetchedAtMillis: Long = 0L,
     val teamSearchResults: List<FavoriteTeam> = emptyList(),
     val teamSearchLoading: Boolean = false,
     val teamSearchError: String? = null,
@@ -63,21 +70,26 @@ class HomeViewModel(
     private val appRepository: InstalledAppSource,
     private val preferencesRepository: LauncherPreferencesSource,
     private val matchRepository: TodayMatchSource,
+    private val motorsportRepository: MotorsportSource,
 ) : AndroidViewModel(application) {
     constructor(application: Application) : this(
         application = application,
         appRepository = InstalledAppRepository(application.applicationContext),
         preferencesRepository = LauncherPreferencesRepository(application.applicationContext),
         matchRepository = TodayMatchRepository(),
+        motorsportRepository = MotorsportRepository(),
     )
 
     private var refreshJob: Job? = null
     private var matchesJob: Job? = null
     private var cachedMatchesJob: Job? = null
+    private var motorsportJob: Job? = null
+    private var cachedMotorsportJob: Job? = null
     private var discoveredApps: List<InstalledApp> = appRepository.cachedLaunchableApps()
     private var latestPreferences = LauncherPreferences()
     private var hasObservedPreferences = false
     private var renderedMatchCacheKey: MatchCacheKey? = null
+    private var renderedMotorsportCacheKey: MotorsportCacheKey? = null
 
     private val _uiState = MutableStateFlow(
         HomeUiState(isLoading = discoveredApps.isEmpty()),
