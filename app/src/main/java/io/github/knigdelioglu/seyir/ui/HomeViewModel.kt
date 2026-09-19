@@ -568,6 +568,29 @@ class HomeViewModel(
         }
     }
 
+    private suspend fun showCachedMotorsport(
+        preferences: LauncherPreferences,
+    ) {
+        val cacheKey = MotorsportCacheKey(
+            date = preferences.dailyMotorsportCacheDate,
+            rawJson = preferences.dailyMotorsportCacheJson,
+        )
+        if (cacheKey == renderedMotorsportCacheKey) return
+
+        val sessions = motorsportRepository.parseCachedSessions(
+            preferences.dailyMotorsportCacheJson,
+        )
+        renderedMotorsportCacheKey = cacheKey
+        _uiState.update {
+            it.copy(
+                motorsportSessions = sessions,
+                motorsportLoading = false,
+                motorsportError = null,
+                motorsportFetchedAtMillis = preferences.dailyMotorsportCacheFetchedAtMillis,
+            )
+        }
+    }
+
     private fun observePreferences() {
         viewModelScope.launch {
             preferencesRepository.preferences.collectLatest { preferences ->
