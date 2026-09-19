@@ -81,7 +81,7 @@ fun SportsSettingsScreen(
             )
             Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
             Text(
-                text = "Günün öne çıkan futbol maçlarını API-Football ile listeler.",
+                text = "Futbol maçlarını, Formula 1 ve MotoGP seanslarını tek günlük akışta gösterir.",
                 fontSize = SeyirType.Subtitle,
                 color = SeyirColors.TextSecondary,
             )
@@ -174,7 +174,7 @@ fun SportsSettingsScreen(
 
             Spacer(modifier = Modifier.height(SeyirSpacing.Section))
             Text(
-                text = "Seyir günde en fazla 1 istek yapar ve veriyi cihazda kalıcı saklar. API-Football ücretsiz planı günde 100 istek hakkı sunar ve herhangi bir ödeme yöntemi/kredi kartı gerektirmez. Maçlar Türkiye saatiyle gösterilir; Takımlarım değişiklikleri aynı saatli eşleşmelerde yerel olarak uygulanır.",
+                text = "Futbol verisi API-Football anahtarıyla çalışır. Formula 1 ve MotoGP için ek anahtar gerekmez; Seyir motor sporları takvimini günlük cache'ler. Tüm saatler Türkiye saatiyle gösterilir.",
                 fontSize = SeyirType.Meta,
                 color = SeyirColors.TextTertiary,
             )
