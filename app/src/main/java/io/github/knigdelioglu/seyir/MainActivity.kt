@@ -184,7 +184,10 @@ class MainActivity : ComponentActivity() {
                         onOpenSettings = { openAndroidSettings() },
                         onOpenAppearanceSettings = { screen = SCREEN_APPEARANCE_SETTINGS },
                         onRetry = viewModel::refresh,
-                        onRefreshMatches = { viewModel.refreshTodayMatches(force = true) },
+                        onRefreshMatches = {
+                            viewModel.refreshTodayMatches(force = true)
+                            viewModel.refreshTodayMotorsport(force = true)
+                        },
                         onDismissMessage = viewModel::dismissTransientMessage,
                     )
                 }
@@ -197,6 +200,7 @@ class MainActivity : ComponentActivity() {
         enterImmersiveMode()
         viewModel.refreshOnResume()
         viewModel.refreshTodayMatches()
+        viewModel.refreshTodayMotorsport()
     }
 
     override fun onDestroy() {
