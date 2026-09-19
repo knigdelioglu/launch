@@ -52,6 +52,17 @@ interface LauncherPreferencesSource {
     suspend fun cleanupUnavailablePackages(availablePackages: Set<String>)
 }
 
+interface MotorsportSource {
+    suspend fun loadTodaySessions(
+        zoneId: ZoneId,
+        date: LocalDate,
+    ): MotorsportDayResult
+
+    suspend fun parseCachedSessions(
+        rawJson: String,
+    ): List<TodayMotorsportSession>
+}
+
 interface TodayMatchSource {
     suspend fun loadTodayMatches(
         apiKey: String,
