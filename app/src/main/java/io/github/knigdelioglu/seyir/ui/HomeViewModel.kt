@@ -292,6 +292,91 @@ class HomeViewModel(
         }
     }
 
+    fun refreshTodayMotorsport(force: Boolean = false) {
+        if (!hasObservedPreferences && !force) return
+
+        val zoneId = TodayMatchRepository.TURKEY_TIME_ZONE
+        val today = LocalDate.now(zoneId)
+        val todayValue = today.toString()
+        val preferences = latestPreferences
+        val hasTodayCache =
+            preferences.dailyMotorsportCacheDate == todayValue &&
+                preferences.dailyMotorsportCacheJson.isNotBlank()
+
+        if (!force && hasTodayCache) {
+            val cacheKey = MotorsportCacheKey(
+                date = preferences.dailyMotorsportCacheDate,
+                rawJson = preferences.dailyMotorsportCacheJson,
+            )
+            if (cacheKey == renderedMotorsportCacheKey) return
+
+            if (cachedMotorsportJob?.isActive != true) {
+                cachedMotorsportJob = viewModelScope.launch {
+                    showCachedMotorsport(preferences)
+                }
+            }
+            return
+        }
+
+        if (!force && preferences.dailyMotorsportAttemptDate == todayValue) {
+            _uiState.update {
+                it.copy(
+                    motorsportLoading = false,
+                    motorsportError = null,
+                )
+            }
+            return
+        }
+        if (motorsportJob?.isActive == true) return
+
+        cachedMotorsportJob?.cancel()
+        cachedMotorsportJob = null
+        renderedMotorsportCacheKey = null
+        motorsportJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    motorsportLoading = true,
+                    motorsportError = null,
+                )
+            }
+
+            try {
+                preferencesRepository.markDailyMotorsportAttempt(todayValue)
+                val result = motorsportRepository.loadTodaySessions(
+                    zoneId = zoneId,
+                    date = today,
+                )
+                val fetchedAt = System.currentTimeMillis()
+                renderedMotorsportCacheKey = MotorsportCacheKey(
+                    date = todayValue,
+                    rawJson = result.rawJson,
+                )
+                preferencesRepository.saveDailyMotorsportCache(
+                    date = todayValue,
+                    json = result.rawJson,
+                    fetchedAtMillis = fetchedAt,
+                )
+                _uiState.update {
+                    it.copy(
+                        motorsportSessions = result.sessions,
+                        motorsportLoading = false,
+                        motorsportError = null,
+                        motorsportFetchedAtMillis = fetchedAt,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(
+                        motorsportLoading = false,
+                        motorsportError = "F1 / MotoGP verisi alınamadı.",
+                    )
+                }
+            }
+        }
+    }
+
     fun searchTeams(query: String) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.length < TEAM_SEARCH_MIN_LENGTH) {
