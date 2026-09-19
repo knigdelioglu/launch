@@ -53,13 +53,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import io.github.knigdelioglu.seyir.data.InstalledApp
+import io.github.knigdelioglu.seyir.data.MotorsportKind
 import io.github.knigdelioglu.seyir.data.TodayMatch
+import io.github.knigdelioglu.seyir.data.TodayMatchRepository
+import io.github.knigdelioglu.seyir.data.TodayMotorsportSession
 import io.github.knigdelioglu.seyir.ui.theme.SeyirColors
 import io.github.knigdelioglu.seyir.ui.theme.SeyirRadius
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSize
 import io.github.knigdelioglu.seyir.ui.theme.SeyirSpacing
 import io.github.knigdelioglu.seyir.ui.theme.SeyirType
 import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -255,15 +259,15 @@ fun HomeScreen(
                             )
                         }
 
-                        if (uiState.sportsApiConfigured) {
-                            Spacer(modifier = Modifier.height(SeyirSpacing.Item))
-                            TodayMatchesSection(
-                                matches = uiState.todayMatches,
-                                loading = uiState.matchesLoading,
-                                error = uiState.matchesError,
-                                onRefresh = onRefreshMatches,
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(SeyirSpacing.Item))
+                        TodayMatchesSection(
+                            matches = uiState.todayMatches,
+                            motorsportSessions = uiState.motorsportSessions,
+                            loading = uiState.matchesLoading || uiState.motorsportLoading,
+                            footballError = uiState.matchesError,
+                            motorsportError = uiState.motorsportError,
+                            onRefresh = onRefreshMatches,
+                        )
 
                         Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
                         TvAction(
@@ -356,8 +360,10 @@ fun HomeScreen(
 @Composable
 private fun TodayMatchesSection(
     matches: List<TodayMatch>,
+    motorsportSessions: List<TodayMotorsportSession>,
     loading: Boolean,
-    error: String?,
+    footballError: String?,
+    motorsportError: String?,
     onRefresh: () -> Unit,
 ) {
     var nowEpochSeconds by remember { mutableStateOf(System.currentTimeMillis() / 1_000L) }
@@ -375,6 +381,12 @@ private fun TodayMatchesSection(
             nowEpochSeconds = nowEpochSeconds,
         )
     }
+    val visibleMotorsport = remember(motorsportSessions, nowEpochSeconds) {
+        motorsportSessions.filter {
+            it.startEpochSeconds + MOTORSPORT_SESSION_VISIBILITY_SECONDS >= nowEpochSeconds
+        }
+    }
+    val totalItems = visibleMatches.size + visibleMotorsport.size
 
     Row(
         modifier = Modifier
@@ -391,10 +403,9 @@ private fun TodayMatchesSection(
         Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = when {
-                loading -> "yükleniyor"
-                error != null -> "veri alınamadı"
-                visibleMatches.isEmpty() -> "kalan maç yok"
-                else -> "${visibleMatches.size} maç • Türkiye saati"
+                loading && totalItems == 0 -> "yükleniyor"
+                totalItems == 0 -> "kalan etkinlik yok"
+                else -> "$totalItems etkinlik • Türkiye saati"
             },
             fontSize = SeyirType.Meta,
             color = SeyirColors.TextTertiary,
@@ -405,29 +416,34 @@ private fun TodayMatchesSection(
 
     Spacer(modifier = Modifier.height(SeyirSpacing.Compact))
 
-    when {
-        loading && visibleMatches.isEmpty() -> Text(
-            text = "Maçlar hazırlanıyor…",
-            fontSize = SeyirType.Meta,
-            color = SeyirColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
-        )
+    if (visibleMotorsport.isNotEmpty()) {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Compact),
+            contentPadding = PaddingValues(
+                start = SeyirSpacing.ScreenHorizontal,
+                end = SeyirSpacing.ScreenHorizontal,
+                top = 4.dp,
+                bottom = 4.dp,
+            ),
+        ) {
+            itemsIndexed(
+                items = visibleMotorsport,
+                key = { _, session -> session.id },
+            ) { index, session ->
+                MotorsportSessionCard(
+                    session = session,
+                    isFirst = index == 0,
+                )
+            }
+        }
+        if (visibleMatches.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(SeyirSpacing.Tiny))
+        }
+    }
 
-        error != null && visibleMatches.isEmpty() -> Text(
-            text = error,
-            fontSize = SeyirType.Meta,
-            color = SeyirColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
-        )
-
-        visibleMatches.isEmpty() -> Text(
-            text = "Şu anda oynanan veya daha sonra başlayacak maç bulunamadı.",
-            fontSize = SeyirType.Meta,
-            color = SeyirColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
-        )
-
-        else -> LazyRow(
+    if (visibleMatches.isNotEmpty()) {
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(SeyirSpacing.Compact),
             contentPadding = PaddingValues(
@@ -443,12 +459,102 @@ private fun TodayMatchesSection(
             ) { index, match ->
                 TodayMatchCard(
                     match = match,
-                    isFirst = index == 0,
+                    isFirst = visibleMotorsport.isEmpty() && index == 0,
                 )
             }
         }
     }
+
+    if (totalItems == 0) {
+        val message = when {
+            loading -> "Bugünün etkinlikleri hazırlanıyor…"
+            footballError != null && motorsportError != null ->
+                "$footballError  $motorsportError"
+            motorsportError != null -> motorsportError
+            footballError != null -> footballError
+            else -> "Şu anda oynanan veya daha sonra başlayacak etkinlik bulunamadı."
+        }
+        Text(
+            text = message,
+            fontSize = SeyirType.Meta,
+            color = SeyirColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = SeyirSpacing.ScreenHorizontal),
+        )
+    }
 }
+
+@Composable
+private fun MotorsportSessionCard(
+    session: TodayMotorsportSession,
+    isFirst: Boolean,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val sportLabel = when (session.sport) {
+        MotorsportKind.FORMULA_1 -> "F1"
+        MotorsportKind.MOTOGP -> "MotoGP"
+    }
+
+    Column(
+        modifier = Modifier
+            .width(214.dp)
+            .tvFocusScale(
+                focused = focused,
+                label = "motorsport-card-scale",
+                scaleOrigin = if (isFirst) TransformOrigin(0f, 0.5f) else TransformOrigin.Center,
+            )
+            .background(
+                color = if (focused) SeyirColors.SurfaceFocused else SeyirColors.SurfaceSoft,
+                shape = RoundedCornerShape(SeyirRadius.Action),
+            )
+            .tvFocusedChasingBorder(
+                focused = focused,
+                cornerRadius = SeyirRadius.Action,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .padding(horizontal = 15.dp, vertical = 11.dp),
+    ) {
+        Text(
+            text = "$sportLabel • ${session.sessionName}",
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = 11.sp,
+            color = SeyirColors.TextTertiary,
+        )
+        Spacer(modifier = Modifier.height(5.dp))
+        Text(
+            text = session.eventName,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = SeyirType.Meta,
+            fontWeight = FontWeight.Medium,
+            color = SeyirColors.TextPrimary,
+        )
+        if (session.circuitName.isNotBlank()) {
+            Text(
+                text = session.circuitName,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 11.sp,
+                color = SeyirColors.TextTertiary,
+            )
+        }
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(
+            text = formatMotorsportTime(session.startEpochSeconds),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (focused) SeyirColors.TextPrimary else SeyirColors.TextSecondary,
+        )
+    }
+}
+
+private fun formatMotorsportTime(epochSeconds: Long): String =
+    Instant.ofEpochSecond(epochSeconds)
+        .atZone(TodayMatchRepository.TURKEY_TIME_ZONE)
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
+
+private const val MOTORSPORT_SESSION_VISIBILITY_SECONDS = 3 * 60 * 60L
 
 @Composable
 private fun TodayMatchCard(
