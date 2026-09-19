@@ -63,6 +63,24 @@ class LauncherPreferencesRepositoryTest {
     }
 
     @Test
+    fun motorsportCache_isPersisted() = runBlocking {
+        val repository = repository()
+
+        repository.markDailyMotorsportAttempt("2026-09-19")
+        repository.saveDailyMotorsportCache(
+            date = "2026-09-19",
+            json = "[{\"id\":\"f1-1-race\"}]",
+            fetchedAtMillis = 1234L,
+        )
+
+        val preferences = repository.preferences.first()
+        assertEquals("2026-09-19", preferences.dailyMotorsportAttemptDate)
+        assertEquals("2026-09-19", preferences.dailyMotorsportCacheDate)
+        assertEquals("[{\"id\":\"f1-1-race\"}]", preferences.dailyMotorsportCacheJson)
+        assertEquals(1234L, preferences.dailyMotorsportCacheFetchedAtMillis)
+    }
+
+    @Test
     fun blankStoredApiKey_overridesBuildTimeFallback() = runBlocking {
         val repository = repository(defaultApiKey = "build-time-key")
 
