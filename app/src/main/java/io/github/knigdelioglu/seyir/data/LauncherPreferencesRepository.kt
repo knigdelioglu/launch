@@ -63,6 +63,10 @@ data class LauncherPreferences(
     val dailyMatchCacheDate: String = "",
     val dailyMatchCacheJson: String = "",
     val dailyMatchCacheFetchedAtMillis: Long = 0L,
+    val dailyMotorsportAttemptDate: String = "",
+    val dailyMotorsportCacheDate: String = "",
+    val dailyMotorsportCacheJson: String = "",
+    val dailyMotorsportCacheFetchedAtMillis: Long = 0L,
 )
 
 class LauncherPreferencesRepository(
@@ -203,6 +207,24 @@ class LauncherPreferencesRepository(
         }
     }
 
+    override suspend fun markDailyMotorsportAttempt(date: String) {
+        updatePreferences { preferences ->
+            preferences[DAILY_MOTORSPORT_ATTEMPT_DATE] = date.trim()
+        }
+    }
+
+    override suspend fun saveDailyMotorsportCache(
+        date: String,
+        json: String,
+        fetchedAtMillis: Long,
+    ) {
+        updatePreferences { preferences ->
+            preferences[DAILY_MOTORSPORT_CACHE_DATE] = date.trim()
+            preferences[DAILY_MOTORSPORT_CACHE_JSON] = json
+            preferences[DAILY_MOTORSPORT_CACHE_FETCHED_AT] = fetchedAtMillis
+        }
+    }
+
     override suspend fun toggleFavoriteTeam(team: FavoriteTeam): Boolean {
         if (team.id <= 0 || team.name.isBlank()) return false
 
@@ -266,11 +288,16 @@ class LauncherPreferencesRepository(
         val DAILY_MATCH_CACHE_DATE = stringPreferencesKey("daily_match_cache_date_v1")
         val DAILY_MATCH_CACHE_JSON = stringPreferencesKey("daily_match_cache_json_v1")
         val DAILY_MATCH_CACHE_FETCHED_AT = longPreferencesKey("daily_match_cache_fetched_at_v1")
+        val DAILY_MOTORSPORT_ATTEMPT_DATE = stringPreferencesKey("daily_motorsport_attempt_date_v1")
+        val DAILY_MOTORSPORT_CACHE_DATE = stringPreferencesKey("daily_motorsport_cache_date_v1")
+        val DAILY_MOTORSPORT_CACHE_JSON = stringPreferencesKey("daily_motorsport_cache_json_v1")
+        val DAILY_MOTORSPORT_CACHE_FETCHED_AT =
+            longPreferencesKey("daily_motorsport_cache_fetched_at_v1")
         const val MINUTES_PER_DAY = 24 * 60
     }
 }
 
-internal const val CURRENT_LAUNCHER_SCHEMA_VERSION = 6
+internal const val CURRENT_LAUNCHER_SCHEMA_VERSION = 7
 
 internal object LauncherPreferencesCodec {
     private const val PACKAGE_SEPARATOR = "\n"
@@ -292,6 +319,14 @@ internal object LauncherPreferencesCodec {
     private val DAILY_MATCH_CACHE_DATE = stringPreferencesKey("daily_match_cache_date_v1")
     private val DAILY_MATCH_CACHE_JSON = stringPreferencesKey("daily_match_cache_json_v1")
     private val DAILY_MATCH_CACHE_FETCHED_AT = longPreferencesKey("daily_match_cache_fetched_at_v1")
+    private val DAILY_MOTORSPORT_ATTEMPT_DATE =
+        stringPreferencesKey("daily_motorsport_attempt_date_v1")
+    private val DAILY_MOTORSPORT_CACHE_DATE =
+        stringPreferencesKey("daily_motorsport_cache_date_v1")
+    private val DAILY_MOTORSPORT_CACHE_JSON =
+        stringPreferencesKey("daily_motorsport_cache_json_v1")
+    private val DAILY_MOTORSPORT_CACHE_FETCHED_AT =
+        longPreferencesKey("daily_motorsport_cache_fetched_at_v1")
 
     internal fun migrate(preferences: MutablePreferences) {
         val storedVersion = preferences[SCHEMA_VERSION]
@@ -328,6 +363,11 @@ internal object LauncherPreferencesCodec {
         dailyMatchCacheDate = preferences[DAILY_MATCH_CACHE_DATE].orEmpty(),
         dailyMatchCacheJson = preferences[DAILY_MATCH_CACHE_JSON].orEmpty(),
         dailyMatchCacheFetchedAtMillis = preferences[DAILY_MATCH_CACHE_FETCHED_AT] ?: 0L,
+        dailyMotorsportAttemptDate = preferences[DAILY_MOTORSPORT_ATTEMPT_DATE].orEmpty(),
+        dailyMotorsportCacheDate = preferences[DAILY_MOTORSPORT_CACHE_DATE].orEmpty(),
+        dailyMotorsportCacheJson = preferences[DAILY_MOTORSPORT_CACHE_JSON].orEmpty(),
+        dailyMotorsportCacheFetchedAtMillis =
+            preferences[DAILY_MOTORSPORT_CACHE_FETCHED_AT] ?: 0L,
     )
 
     internal fun encodeOrderedPackages(packageNames: List<String>): String = packageNames
